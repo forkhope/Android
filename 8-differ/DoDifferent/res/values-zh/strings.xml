@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">主活动界面-中文</string>
+    <string name="welcome_message">你好 世界,主活动界面</string>
+    <string name="hello_world">你好 世界,再一次</string>
+</resources>

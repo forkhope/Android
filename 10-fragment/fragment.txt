@@ -1,0 +1,438 @@
+#### Building a Dynamic UI with Fragments ####
+To create a dynamic and multi-pane user interface on Android, you need to
+encapsulate UI components and activity behaviors into modules that you can
+swap into and out of your activities. You can create these modules with the
+Fragment class, which behaves somewhat like a nested activity that can
+define its own layout and manage its own lifecycle.
+
+When a fragment specifies its own layout, it can be configured in different
+combinations with other fragments inside an activity to modify your layout
+configuration for different screen sizes (a small screen might show one
+fragment at a time, but a large screen can show two or more).
+
+#### Creating a Fragment ####
+You can think of a fragment as a modular section of an activity, which has
+its own lifecycle, receives its own input events, and which you can add or
+remove while the activity is running (sort of like a "sub activity" that
+you can reuse in different activities).
+Note: If you decide that the minimum API level your app requires is 11 or
+higher, you don't need to use the Support Library and can instead use the
+framework's built in Fragment class and related APIs.
+
+--> Create a Fragment Class
+To create a fragment, extend the Fragment class, then override key
+lifecycle methods to insert your app logic, similar to the way you would
+with an Activity class.
+
+One difference when creating a Fragment is that you must use the
+onCreateView() callback to define the layout. In fact, this is the only
+callback you need in order to get a fragment running. For example, here's
+a simple fragment that specifies its own layout:
+  import android.os.Bundle;
+  import android.app.Fragment;
+  import android.view.LayoutInflater;
+  import android.view.ViewGroup;
+  
+  public class ArticleFragment extends Fragment {
+      @Override
+      public View onCreateView(LayoutInflater inflater,
+              ViewGroup container, Bundle savedInstanceState) {
+          // Inflate the layout 'article_view.xml' for this fragment
+          return inflater.inflate(R.layout.article_view, container, false);
+      }
+  }
+Just like an activity, a fragment should implement other lifecycle
+callbacks that allow you to manage its state as it is added or removed from
+the activity and as the activity transitions between its lifecycle states.
+For instance, when the activity's onPause() method is called, any fragments
+in the activity also receive a call to onPause().
+
+--> Add a Fragment to an Activity using XML
+While fragments are reusable, modular UI components, each instance of a
+Fragment class must be associated with a parent FragmentActivity or
+Activity. You can achieve this association by defining each fragment within
+your activity layout XML file.
+Note: FragmentActivity is a special activity provided in the Support
+Library to handle fragments on system versions older than API level 11. If
+the lowest system version you support is API level 11 or higher, then you
+can use a regular Activity.
+
+Here is an example layout file that adds two fragments to an activity when
+the device screen is considered "large" (specified by the "large" qualifier
+in the directory name).
+>>>> res/layout-large/news_articles.xml <<<<
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <fragment android:name="com.example.android.fragments.HeadlinesFragment"
+              android:id="@+id/headlines_fragment"
+              android:layout_weight="1"
+              android:layout_width="0dp"
+              android:layout_height="match_parent" />
+
+    <fragment android:name="com.example.android.fragments.ArticleFragment"
+              android:id="@+id/article_fragment"
+              android:layout_weight="2"
+              android:layout_width="0dp"
+              android:layout_height="match_parent" />
+
+</LinearLayout>
+Then apply the layout to your activity:
+    import android.os.Bundle;
+    import android.app.Fragment;
+    
+    public class MainActivity extends Activity {
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            setContentView(R.layout.news_articles);
+        }
+    }
+Note: When you add a fragment to an activity layout by defining the
+fragment in the layout XML file, you cannot remove the fragment at runtime.
+If you plan to swap your fragments in and out during user interaction, you
+must add the fragment to the activity when the activity first starts.
+
+#### Building a Flexible UI ####
+When designing your application to support a wide range of screen sizes,
+you can reuse your fragments in different layout configurations to optimize
+the user experience based on the available screen space.
+For example, on a handset device it might be appropriate to display just
+one fragment at a time for a single-pane user interface. Conversely, you
+may want to set fragments side-by-side on a tablet which has a wider screen
+size to display more information to the user.
+  --------------------------------------------
+  |\\\\\\\\\\\\|/////////////////////////////|
+  |\\\\\\\\\\\\|/////////////////////////////|  ----------     ----------
+  |\\\\\\\\\\\\|/////////////////////////////|  |\\\\\\\\|     |////////|
+  | Fragment A |////////// Fragment B ///////|  |Fragment|---->|Fragment|
+  |\\\\\\\\\\\\|/////////////////////////////|  |\\ A \\\|     |// B ///|
+  |\\\\\\\\\\\\|/////////////////////////////|  |\\\\\\\\|     |////////|
+  --------------------------------------------  ----------     ----------
+Figure 1. Two fragments, displayed in different configurations for the same
+activity on different screen sizes. On a large screen, both fragments fit
+side by side, but on a handset device, only one fragment fits at a time so
+the fragments must replace each other as the user navigates.
+
+The FragmentManager class provides methods that allow you to add, remove,
+and replace fragments to an activity at runtime in order to create a
+dynamic experience.
+
+--> Add a Fragment to an Activity at Runtime
+Rather than defining the fragments for an activity in the layout file--with
+the <fragment> element--you can add a fragment to the activity during the
+activity runtime. This is necessary if you plan to change fragments during
+the life of the activity.
+
+To perform a transaction such as add or remove a fragment, you must use the
+FragmentManager to create a FragmentTransaction, which provides APIs to
+add, remove, replace, and perform other fragment transactions.
+
+If your activity allows fragments to be removed and replaced, you should
+add the initial fragment(s) to the activity during the activity's
+onCreate() method.
+
+An important rule when dealing with fragments--especially those that you
+add at runtime--is that the fragment must have a container View in the
+layout in which the fragment's layout will reside.
+
+In order to replace one fragment with another, the activity's layout
+includes an empty FrameLayout that acts as the fragment container.
+>>>> res/layout/news_articles.xml <<<<
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fragment_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />
+这个例子是将FrameLayout做为xml的根节点.实际上,不将FrameLayout做为xml的根
+节点也可以,例如写成下面的形式:
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <FrameLayout
+        android:id="@+id/fragment_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+</LinearLayout>
+只要xml文件有一个<FrameLayout>节点,且该节点包含一个"android:id"属性即可.
+
+Inside your activity, call getFragmentManager() to get a FragmentManager
+object. Then call beginTransaction() to create a FragmentTransaction() and
+call add() to add a fragment.
+
+You can perform multiple fragment transaction for the activity using the
+same FragmentTransaction. When you're ready to make the changes, you must
+call commit().
+For example, here's how to add a fragment to the previous layout:
+import android.os.Bundle;
+import android.app.Activity;
+import android.app.FragmentTransaction;
+import android.app.FragmentManager;
+
+public class MainActivity extends Activity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.news_articles);
+
+        // Check that the activity is using the layout version with
+        // the fragment_container FrameLayout
+        if (findViewById(R.id.fragment_container) != null) {
+
+            // However, if we're being restored from a previous state,
+            // then we don't need to do anything and should return or else
+            // we could end up with overlapping fragments.
+            if (savedInstanceState != null) {
+                return;
+            }
+
+            // Create a new Fragment to be placed in the activity layout
+            HeadlinesFragment firstFragment = new HeadlinesFragment();
+            
+            // In case this activity was started with special instructions
+            // from an Intent, pass the Intent's extras to the fragment as
+            // arguments. 此时,HeadlinesFragment类可以调用getArguments()函
+            // 数获取这些变量.
+            firstFragment.setArguments(getIntent().getExtras());
+            
+            // Add the fragment to the 'fragment_container' FrameLayout
+            FragmentManager fragMgr = getFragmentManager();
+            FragmentTransaction fragment = fragMgr.beginTransaction();
+            fragment.add(R.id.fragment_container, firstFragment).commit();
+        }
+    }
+}
+注意: 上面的fragment执行过一次commit()函数后,如果想再次使用fragment成员来执
+行commit()函数,需要用beginTransaction()函数再赋值一次.这两个函数要配套使用:
+    fragment = fragMrg.beginTransaction();
+    // do something
+    fragment.commit();
+
+    fragment = fragMrg.beginTransaction();
+    // do another thing
+    fragment.commit();      // commit again
+如果不这样做,运行时会抛出异常.
+
+Because the fragment has been added to the FrameLayout container at runtime
+--instead of defining it in the activity's layout with a <fragment> element
+--the activity can remove the fragment and replace it with a differnet one.
+
+--> Replace One Fragment with Another
+The procedure to replace a fragment is similar to adding one, but requires
+the replace() method instead of add().
+
+Keep in mind that when you perform fragment transactions, such as replace
+or remove one, it's often appropriate to allow the user to navigate
+backward and "undo" the change. To allow the user to navigate backward
+through the fragment transactions, you must call addToBackStack() before
+you commit the FragmentTransaction.
+Note: When you remove or replace a fragment and add the transaction to the
+back statck, the fragment that is removed is stopped (not destroyed). If
+the user navigates back to restore the fragment, it restarts. If you do not
+add the transaction to the back stack, then the fragment is destroyed when
+removed or replaced.
+
+Example of replacing one fragment with another:
+// Create fragment and give it an argument specifying the article it
+// should show. 之后, ArticleFragment类可以执行getArguments().getInt(
+// ARG_POSITION, 0)来获取传入的参数. ARG_POSITION 要定义为 String 类型.
+ArticleFragment newFragment = new ArticleFragment();
+Bundle args = new Bundle();
+args.putInt(ArticleFragment.ARG_POSITION, position);
+newFragment.setArguments(args);
+
+FragmentTransaction transaction = getFragmentManager().beginTransaction();
+
+// Replace whatever is in the fragment_container view with this fragment,
+// and add the transaction to the back stack so the user can navigate back
+transaction.replace(R.id.fragment_container, newFragment);
+transaction.addToBackStack(null);
+
+// Commit the transaction
+transaction.commit();
+
+The addToBackStack() method takes an optional string parameter that
+specifies a unique name for the transaction. The name isn't needed unless
+you plan to perform advanced fragment operations using the
+FragmentManager.BackStackEntry APIs.
+
+#### Communicating with Other Fragments ####
+In order to reuse the Fragment UI components, you should build each as a
+completely self-contained, modular component that defines its own layout
+and behavior. Once you have defined these reusable Fragments, you can
+associate them with an Activity and connect them with the application logic
+to realize the overall composite UI.
+
+Often you will want one Fragment to communicate with another, for example
+to change the content based on a user event. All Fragment-to-Fragment
+communication is done through the associated Activity. Two Fragments should
+never communicate directly.
+
+--> Define an Interface
+To allow a Fragment to communicate up to its Activity, you can define an
+interface in the Fragment class and implement it within the Activity. The
+Fragment captures the interface implementation during its onAttach()
+lifecycle method and can then call the Interface methods in order to
+communicate with the Activity.
+
+Here is an example of Fragment to Activity communication:
+public class HeadlinesFragment extends ListFragment {
+    OnHeadlineSelectedListener mCallback;
+
+    // Container Activity must implement this interface
+    public interface OnHeadlineSelectedListener {
+        public void onArticleSelected(int position);
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        
+        // This makes sure that the container activity has implemented
+        // the callback interface. If not, it throws an exception
+        try {
+            mCallback = (OnHeadlineSelectedListener) activity;
+        } catch (ClassCastException e) {
+            throw new ClassCastException(activity.toString()
+                    + " must implement OnHeadlineSelectedListener");
+        }
+    }
+    
+    ...
+}
+
+Now the fragment can deliver messages to the activity by calling the
+onArticleSelected() method (or other methods in the interface) using the
+mCallback instance of the OnHeadlineSelectedListener interface.
+
+For example, the following method in the fragment is called when the user
+clicks on a list item. The fragment uses the callback interface to deliver
+the event to the parent activity.
+@Override
+public void onListItemClick(ListView l, View v, int position, long id) {
+    // Send the event to the host activity
+    mCallback.onArticleSelected(position);
+}
+注意: 如上所述,这个onListItemClick()函数是在HeadlinesFragment类中定义.
+
+--> Implement the Interface
+In order to receive event callbacks from the fragment, the activity that
+hosts it must implement the interface defined in the fragment class.
+For example, the following activity implements the interface from the
+above example.
+public static class MainActivity extends Activity
+        implements HeadlinesFragment.OnHeadlineSelectedListener {
+    ...
+    
+    public void onArticleSelected(int position) {
+        // The user selected the headline of an article from the
+        // HeadlinesFragment. Do something here to display that article
+    }
+}
+
+--> Deliver a Message to a Fragment
+The host activity can deliver messages to a fragment by capturing the
+Fragment instance with findFragmentById(), then directly call the
+fragment's public methods.
+
+For instance, imagine that the activity shown above may contain another
+fragment that's used to display the item specified by the data returned in
+the above callback method. In this case, the activity can pass the
+information received in the callback method to the other fragment that will
+display the item:
+public static class MainActivity extends Activity
+        implements HeadlinesFragment.OnHeadlineSelectedListener {
+    ...
+
+    public void onArticleSelected(int position) {
+        // The user selected the headline of an article from the
+        // HeadlinesFragment. Do something here to display that article
+
+        ArticleFragment articleFrag = (ArticleFragment)
+            getFragmentManager().findFragmentById(R.id.article_fragment);
+
+        if (articleFrag != null) {
+            // If article frag is available, we're in two-pane layout...
+
+            // Call a method in the ArticleFragment to update its content
+            articleFrag.updateArticleView(position);
+        } else {
+            // Otherwise, we're in the one-pane layout and must swap
+            // frags.... Create fragment and give it an argument for the
+            // selected article.
+            ArticleFragment newFragment = new ArticleFragment();
+            Bundle args = new Bundle();
+            args.putInt(ArticleFragment.ARG_POSITION, position);
+            newFragment.setArguments(args);
+        
+            FragmentTransaction transaction =
+                getFragmentManager().beginTransaction();
+
+            // Replace whatever is in the fragment_container view with this
+            // fragment, and add the transaction to the back stack so the
+            // user can navigate back
+            transaction.replace(R.id.fragment_container, newFragment);
+            transaction.addToBackStack(null);
+
+            // Commit the transaction
+            transaction.commit();
+        }
+    }
+}
+
+#### Fragment 中调用 findViewById() 函数 ####
+findViewById() 函数定义在Activity中,而Fragment类并没有继承自Activity.所以
+不能在Fragment类中直接调用findViewById()函数,而是要先执行 getActivity() 函
+数获取到 Activity 对象再调用 findViewById() 函数. 例如:
+    TextView textview = (TextView) getActivity().findViewById(R.id.text);
+
+#### The Lifecylce of Fragment ####
+Fragment也有自己的生命周期,且跟Activity的很相似,只是稍有不同.下面是几个
+Activity中没有的新方法:
+(1) onAttach(): Fragment 和 Activity 建立关联时调用.在Fragment中,会先调用
+    onAttach()函数,再调用onCreate()函数.
+(2) onCreateView(): 为 Fragment 加载布局时调用.
+(3) onActivityCreated(): 当Activity中的onCreate()方法执行完后调用,但是其
+    调用早于Activity中的onStart()函数
+(4) onDestroyView(): Fragment中的布局被移除时调用.这个函数会在Activity的
+    onStop()函数之后,onDestroy()函数之前调用.
+(5) onDetach(): Fragment 和 Activity 解除关联时调用.这个函数会在Fragment的
+    onDestroy()函数之后调用.
+另外, Fragment 没有实现 Activity 的 onRestart() 函数.
+
+一个 Fragment 和 Activity 的生命周期log 如下:
+# 启动 Activity, 该 Activity 会添加一个 Fragment.
+D/life-Activity( 5801): 1: >>>>>>>>>> onCreate
+D/life-Fragment( 5801): HeadlinesFragment: onAttach
+D/life-Fragment( 5801): HeadlinesFragment: onCreate
+D/life-Fragment( 5801): HeadlinesFragment: onCreateView
+D/life-Fragment( 5801): HeadlinesFragment: onActivityCreated
+D/life-Activity( 5801): 2: >>>>>>>>> onStart
+D/life-Fragment( 5801): HeadlinesFragment: onStart
+D/life-Activity( 5801): 3: >>>>>>>>> onResume
+D/life-Fragment( 5801): HeadlinesFragment: onResume
+# 点击 HOME 键,返回主界面
+D/life-Fragment( 5801): HeadlinesFragment: onPause
+D/life-Activity( 5801): 4: <<<<<<<<< onPause
+D/life-Fragment( 5801): HeadlinesFragment: onStop
+D/life-Activity( 5801): 5: <<<<<<<<< onStop
+# 通过"最近任务列表"界面,返回 Activity 应用
+D/life-Activity( 5801): 7: >>>>>>>>> onRestart
+D/life-Activity( 5801): 2: >>>>>>>>> onStart
+D/life-Fragment( 5801): HeadlinesFragment: onStart
+D/life-Activity( 5801): 3: >>>>>>>>> onResume
+D/life-Fragment( 5801): HeadlinesFragment: onResume
+# 点击 BACK 键退出该 Activity 应用.
+D/life-Fragment( 5801): HeadlinesFragment: onPause
+D/life-Activity( 5801): 4: <<<<<<<<< onPause
+D/life-Fragment( 5801): HeadlinesFragment: onStop
+D/life-Activity( 5801): 5: <<<<<<<<< onStop
+D/life-Fragment( 5801): HeadlinesFragment: onDestroyView
+D/life-Fragment( 5801): HeadlinesFragment: onDestroy
+D/life-Fragment( 5801): HeadlinesFragment: onDetach
+D/life-Activity( 5801): 6: <<<<<<<<< onDestroy
+可以看到,在启动时,会先执行Activity的函数,再执行Fragment的函数,在停止时,会
+先执行Fragment的函数,再执行Activity的函数.在Fragment中,调用最早的函数是
+onAttach()函数,调用最晚的函数是onDetach()函数.

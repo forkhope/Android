@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/login_form"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <TableRow>    	
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="IP:"
+            android:textSize="10pt" />
+        <EditText
+            android:id="@+id/ip_edit_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:digits="0123456789."
+            android:hint="请填写服务器IP"
+            android:selectAllOnFocus="true" />
+    </TableRow>
+</TableLayout>

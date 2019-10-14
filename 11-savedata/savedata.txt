@@ -1,0 +1,690 @@
+#### Saving Data ####
+Most Android apps need to save data, even if only to save information about
+the app state during onPause() so the user's progress is not lost. Most
+non-trivial apps also need to save user settings, and some apps must manage
+large amounts of information in files and databases.
+
+#### Saving Key-Value Sets ####
+If you have a relatively small collection of key-values that you'd like to
+save, you should use the SharedPreferences APIs. A SharedPreferences object
+points to a file containing key-value pairs and provides simple methods to
+read and write them. Each SharedPreferences file is managed by the
+framework and can be private or shared. 可见, SharedPreferences 对象关联到
+实际的文件,即使关机重启,所保存的值也还在文件里面.
+
+使用SharedPreferences时,需要添加"import android.content.SharedPreferences"
+来引入这个包.
+
+Note: The SharedPreferences APIs are only for reading and writing key-value
+pairs and you should not confuse them with the Preference APIs, which help
+you build a user interface for your app settings (although they use
+SharedPreferences as their implementation to save the app settings).
+
+--> Get a Handle to a SharedPreferences
+You can create a new shared preference file or access an existing one by
+calling one of two methods:
+(1) getSharedPreferences()--Use this if you need multiple shared preference
+file identified by name, which you specify with the first parameter. You
+can call this from any Context in your app. Activity间接继承自Context,可以
+直接在Activity类中调用 getSharedPreferences() 函数.
+(2) getPreferences()--Use this from an Activity if you need to use only one
+shared preference file for the activity. Because this retrieves a default
+shared preference file that belongs to the activity, you don't need to
+supply a name.
+
+For example, the following code is executed inside a Activity. It accesses
+the shared preferences file that's identified by the resource string
+"R.string.preference_file_key" and opens it using the private mode so the
+file is accessible by only your app.
+    SharedPreferences sharedPref = getSharedPreferences(
+        getString(R.string.preference_file_key), Context.MODE_PRIVATE);
+When naming your shared preference files, you should use a name that's
+uniquely identifiable to your app, such as "com.example.myapp.FILE_KEY".
+使用这种方法得到的SharedPreferences会关联到一个实际的文件.假设当前Activity
+所在的包名是"com.example.mysavedata",则在机器上,这个文件的所在目录是:
+    "/data/data/com.example.mysavedata/shared_prefs"
+而该文件的文件名会是: "com.example.mysavedata.FILE_KEY.xml". 即,这个文件名
+由"包名.第一个参数.xml"组成.这里的"第一个参数"指的是getSharedPreferences()
+函数的第一个参数.显然,这是一个XML文件,里面内容类似于:
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <int name="saved_high_score" value="88" />
+</map>
+即,这里面保存了一个键名为"saved_high_score",键值为"88"的键值对.
+
+Alternatively, if you need just one shared preference file for your
+activity, you can use the getPreferences() method:
+    SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
+用这个函数得到的SharedPreferences也关联到一个实际的文件,以上面的包名为例,则
+这个文件所在路径也是: "/data/data/com.example.mysavedata/shared_prefs".
+不过,它的文件名会是 "MainActivity.xml". 这个"MainActivity"是当前Activity的
+名字.即getPreferences()函数关联到的文件名为 "Activity名.xml". 该文件里面的
+内容和上面 "com.example.mysavedata.FILE_KEY.xml" 文件的内容类似.
+
+Caution: If you create a shared preferences file with MODE_WORLD_READABLE
+or MODE_WORLD_WRITEABLE, then any other apps that know the file identifier
+can access your data. 这两个常量在API level 17中已经标记为废弃,尽量不要用.
+
+--> Write to Shared Preferences
+To write to a shared preferences file, create a SharedPreferences.Editor
+by calling edit() on your SharedPreferences.
+
+Pass the keys and values you want to write with methods such as putInt()
+and putString(). Then call commit() to save the changes. For example:
+    SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
+    SharedPreferences.Editor editor = sharedPref.edit();
+    editor.putInt(getString(R.string.saved_high_score), newHighScore);
+    editor.commit();
+getPreferences()函数关联到"shared_prefs/MainActivity.xml"文件.putInt()函数
+会在该XML文件中添加这样一项:
+    <int name="saved_high_score" value="88" />
+如果执行的是 editor.putString("saved_name", "John"),则会添加这样一项:
+    <string name="saved_name">John</string>
+在调用commit()函数之前,可以调用多个putInt(), putString()函数来写入多个值.
+
+SharedPreferences.Editor中,还有putLong(), putBoolean()等函数可以其他类型的
+值.另外可以调用 "remove(String key)" 函数可以删除所对应XML文件的某项,也可
+以调用 "clean()" 清除所对应XML文件中的所有项.
+
+--> Read from Shared Preferences
+To retrieve values from a shared preferences file, call methods such as
+getInt() and getString(), providing the key for the value you want, and
+optionally a default value to return if the key isn't present. For example:
+ SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
+ int highScore = sharedPref.getInt(getString(R.string.saved_high_score), 0)
+实际上,SharedPreferences类的getInt()函数必须提供一个默认值,而不是可选的,否
+则编译报错. SharedPreferences 类只定义了一个 getInt() 函数,其原型如下:
+    int getInt(String key, int defValue);
+在SharedPreferences中,并不存在一个原型为"int getInt(String key)"的重载函数.
+
+#### Saving Files ####
+Android uses a file system that's similar to disk-based file systems on
+other platforms. The following describes how to work with the Android file
+system to read and write files with the File APIs.
+A File object is suited to reading or writing large amounts of data in
+start-to-finish order without skipping around. For example, it's good for
+image files or anything exchanged over a network.
+
+--> Choose Internal or External Storage
+All Android devices have two file storage areas: "internal" and "external"
+storage. These names come from the early days of Android, when most devices
+offered built-in non-volatile memory (internal storage), plus a removable
+storage medium such as a micro SD card (external storage). Some devices
+divide the permanent storage space into "internal" and "external"
+partitions, so even without a removable storage medium, there are always
+two storage spaces and the API behavior is the same whether the external
+storage is removable or not. The following lists summarize the facts about
+each storage space.
+> Internal storage: (1) It's always available. (2) Files saved here are
+accessible by only your app by default. (3) When the user uninstalls your
+app, the system removes all your app's files from internal storage. (4)
+Internal storage is best when you want to be sure that neither the user nor
+other apps can access your files.
+> External storage: (1) It's not always available, because the user can
+mount the external storage as USB storage and in some cases remove it from
+the device. (2) It's world-readable, so files saved here may be read
+outside of your control. (3) When the user uninstalls your app, the system
+removes your app's files from here only if you save them in the directory
+from getExternalFilesDir(). (4) External storage is the best place for
+files that don't require access restrictions and for files that you want to
+share with other apps or allow the user to access with a computer.
+
+Tip: Although apps are installed onto the internal storage by default, you
+can specify the "android:installLocation" attribute in your manifest so
+your app may be installed on external storage. Users appreciate this option
+when the APK size is very large and then have an external storage space
+that's larger than the internal storage.
+
+--> Obtain Permissions for External Storage
+To write to the external storage, you must request the
+WRITE_EXTERNAL_STORAGE permission in your manifest:
+<manifest ...>
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+ ...
+</manifest>
+Caution: Currently, all apps have the ability to read the external storage
+without a special permission. However, this will change in a future release.
+If your app needs to read the external storage (but not write to it), then
+you will need to declare the READ_EXTERNAL_STORAGE permission. To ensure
+that your app continues to work as expected, you should declare this
+permission now, before the change takes effect.
+<manifest ...>
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+...
+</manifest>
+However, if your app uses the WRITE_EXTERNAL_STORAGE permission, then it
+implicitly has permission to read the external storage as well.
+
+You don't need any permissions to save files on the internal storage. Your
+application always has permission to read and write files in its internal
+storage directory.
+
+--> Save a File on Internal Storage
+When saving a file to internal storage, you can acquire the appropriate
+directory as a File by calling one of two methods:
+getFilesDir():
+    Returns a File representing an internal directory for your app.
+getCacheDir();
+    Returns a File representing an internal directory for your app's
+    temporary cache files. Be sure to delete each file once it is no longer
+    needed and implement a reasonable size limit for the amount of memory
+    you use at any given time, such as 1MB. If the system begins running
+    low on storage, it may delete your cache files without warning.
+以包名"com.example.mysavedata"为例,上面两个函数所返回的目录路径分别如下:
+    getFilesDir() = /data/data/com.example.mysavedata/files
+    getCacheDir() = /data/data/com.example.mysavedata/cache
+
+To create a new file in one of these directories, you can use the File()
+constructor, passing the File provided by one of the above methods that
+specifies your internal storage directory. For example:
+    File file = new File(context.getFilesDir(), filename);
+Alternatively, you can call openFileOutput() to get a FileOutputStream that
+writes to a file in your internal directory. For example, here's how to
+write some text to a file (注意添加import java.io.FileOutputStream;语句):
+    String filename = "myfile";
+    String string = "Hello world!";
+    FileOutputStream outputStream;
+    
+    try {
+      outputStream = openFileOutput(filename, Context.MODE_PRIVATE);
+      outputStream.write(string.getBytes());
+      outputStream.close();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+openFileOutput()函数会在internal storage的目录下新建一个文件,文件名就是该函
+数的第一个参数.例如: "/data/data/com.example.mysavedata/files/myfile".
+
+Or, if you need to cache some files, you should instead use
+createTempFile(). 举例如下 (注意添加import java.io.File来引入File包):
+    File file;
+    try {
+        file = File.createTempFile("mycachefile", null, getCacheDir());
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+这部分代码会在"/data/data/com.example.mysavedata/cache/"目录下创建一个缓存
+文件,例如"mycachefile1049843177.tmp". 可以看到,该文件名的组成方式为:
+    "createTempFile()函数的第一个参数" + "随机数" + ".tmp"
+再次执行这部分代码,所创建的缓存文件名可能就是"mycachefile1450557224.tmp".
+当然,也有可能是其他文件名.这里主要想说明,所创建的缓存文件名不会重复.
+
+Note: Your app's internal storage directory is specified by your app's
+package name in a special location of the Android file system. Technically,
+another app can read your internal files if you set the file mode to be
+readable. However, the other app would also need to know your app package
+name and file names. Other apps cannot browse your internal directories and
+do not have read or write access unless you explicitly set the files to be
+readable or writable. So as long as you use MODE_PRIVATE for your files on
+the internal storage, they are never accessible to other apps.
+
+--> Save a File on External Storage
+Because the external storage may be unavailable--such as when the user has
+mounted the storage to a PC or has removed the SD card that provides the
+external storage--you should always verify that the volume is available
+before accessing it. You can query the external storage state by calling
+getExternalStorageState(). If the returned state is equal to MEDIA_MOUNTED,
+then you can read and write your files. For example, the following methods
+are useful to determine the storage availability:
+注意: 添加 "import android.os.Environment;" 语句来引入 Environment 包.
+    /* Checks if external storage is available for read and write */
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+    
+    /* Checks if external storage is available to at least read */
+    public boolean isExternalStorageReadable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state) ||
+            Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+Although the external storage is modifiable by the user and other apps,
+there are two categories of files you might save here:
+> Public files
+    Files that should be freely available to other apps and to the user.
+    When the user uninstalls your app, these files should remain available
+    to the user.
+    For example, photos captured by your app or other downloaded files.
+> Private files
+    Files that rightfully belong to your app and should be deleted when the
+    user uninstalls your app. Although these files are technically
+    accessible by the user and other apps because they are on the external
+    storage, they are files that realistically don't provide value to the
+    user outside your app. When the user uninstalls your app, the system
+    deletes all files in your app's external private directory.
+    For example, additional resources downloaded by your app or temporary
+    media files.
+
+If you want to save public files on the external storage, use the
+getExternalStoragePublicDirectory() method to get a File representing the
+appropriate directory on the external storage. The method takes an argument
+specifying the type of file you want to save so that they can be logically
+organized with other public files, such as DIRECTORY_MUSIC or 
+DIRECTORY_PICTURES. For example (添加import android.so.Environment;语句):
+    public File getAlbumStorageDir(String albumName) {
+        // Get the directory for the user's public pictures directory. 
+        File file = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES), albumName);
+        if (!file.mkdirs()) {
+            Log.e(LOG_TAG, "Directory not created");
+        }
+        return file;
+    }
+调试发现,getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+语句返回的目录路径是"/mnt/sdcard/Pictures".这个路径中的"/mnt/sdcard/"随机器
+不同可能有所不同.主要是在于"Pictures"这个目录名上.
+执行 "getAlbumStorageDir(myalbum);" 语句,将会在"/mnt/sdcard/Pictures/"目录
+下新建一个"myalbum"子目录. 解释如下:
+(1) getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)语句
+会返回 "/mnt/sdcard/Pictures".
+(2) File(String dirPath, String name)构造函数会使用指定的目录名和文件名来
+构造出一个新的File对象.在目录名和文件名中间会放一个路径分隔符('/').这个语句
+只是得到一个文件名,但是该文件可能还没有被创建出来.
+(3) file.mkdirs() 语句会使用该file对象的文件名来创建一个目录,如果该文件的父
+目录不存在,则会先创建其父目录,再创建该文件.对该函数以及mkdir()函数描述如下:
+mkdir(): Creates the directory named by this file, assuming its parents
+         exist. Use mkdirs() if you also want to create missing parents.
+mkdirs(): Creates the directory named by this file, creating missing parent
+          directories if necessary. Use mkdir() if you don't want to create
+          missing parents.
+如果所要创建的目录已经存在,这两个函数都会报错.
+
+If you want to save files that are private to your app, you can acquire the
+appropriate directory by calling getExternalFilesDir() and passing it a
+name indicating the type of directory you'd like. Each directory created
+this way is added to a parent directory that encapsulates all your app's
+external storage files, which the system deletes when the user uninstalls
+your app. For example, here's a method you can use to create a directory
+for an invididual photo album:
+    public File getAlbumStorageDir_t(Context context, String albumName) {
+        // Get the directory for the app's private pictures directory. 
+        File file = new File(context.getExternalFilesDir(
+                Environment.DIRECTORY_PICTURES), albumName);
+        if (!file.mkdirs()) {
+            Log.e(LOG_TAG, "Directory not created");
+        }
+        return file;
+    }
+调试发现,getExternalFilesDir(Environment.DIRECTORY_PICTURES)返回的目录路径
+是"/mnt/sdcard/Android/data/com.example.mysavedata/files/Pictures".这里的
+"com.example.mysavedata"是当前Activity的包名.这个getAlbumStorageDir_t()函数
+会在该目录下创建一个子目录,其目录名为albumName变量的值.例如:
+  "/mnt/sdcard/Android/data/com.example.mysavedata/files/Pictures/myalbum"
+
+If none of the pre-defined sub-directory names suit your files, you can
+instead call getExternalFilesDir() and pass null. This return the root
+directory for your app's private directory on the external storage.
+该根目录路径是:"/mnt/sdcard/Android/data/com.example.mysavedata/files".
+
+Remember that getExternalFilesDir() creates a directory inside a directory
+that is deleted when the user uninstalls your app. If the files you're
+saving should remain available after the user uninstalls your app--such as
+when your app is a camera and the user will want to keep the photos--you
+should instead use getExternalStoragePublicDirectory().
+
+Regardless of whether you use getExternalStoragePublicDirectory() for files
+that are shared or getExternalFilesDir() for files that are private to
+your app, it's important that you use directory names provided by API
+constants like DIRECTORY_PICTURES. These directory names ensure that the
+files are treated properly by the system. For instance, files saved in
+DIRECTORY_RINGTONES are categorized by the system media scanner as
+ringtones instead of music.
+
+--> Query Free Space
+If you know ahead of time how much data you're saving, you can find out
+whether sufficient space is available without causing an IOException by
+calling getFreeSpace() or getTotalSpace(). These methods provide the
+current available space and the total space in the storage volume,
+respectively. This information is also useful to avoid filling the storage
+volume above a certain threshold. 注意: getFreeSpace() 和 getTotalSpace()
+函数都属于 File 类,需要通过 File 类的对象来调用. 例如:
+    try {
+        String albumName = "testdir";
+        File file = new File(context.getExternalFilesDir(
+                Environment.DIRECTORY_PICTURES), albumName);
+        // 如果该 file 对应的文件不存在, getFreeSpace() 和 getTotalSpace()
+        // 会返回0.所以下面调用mkdirs()函数创建出一个新目录,以便能查询到正
+        // 确的空量.即,这两个查询容量的函数要通过已经存在的文件来进行查询.
+        if (!file.mkdirs()) {
+            Log.e(LOG_TAG, "Directory not created");
+        }
+
+        // getFreeSpace() 和 getTotalSpace() 函数都返回 long 类型,如果下面
+        // 的freeSpace和totalSpace声明为int型,编译会提示"可能损失精度".
+        long freeSpace = file.getFreeSpace();
+        long totalSpace = file.getTotalSpace();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+> long getFreeSpace(): Returns the number of free bytes on the partition
+  containing this path. Returns 0 if this path does not exist. Note that
+  this is likely to be an optimistic over-estimate and should not be taken
+  as a guarantee your application can actually write this many bytes.
+> long getTotalSpace(): Returns the total size in bytes of the partition
+  containing this path. Returns 0 if this path does not exist.
+
+However, the system does not guarantee that you can write as many bytes as
+are indicated by getFreeSpace(). If the number returned is a few MB more
+than the size of the data you want to save, or if the file system is less
+than 90% full, then it's probably safe to proceed. Otherwise, you probably
+shouldn't write to storage.
+Note: You aren't required to check the amount of available space before you
+save your file. You can instead try writing the file right away, then catch
+an IOException if one occurs. You may need to do this if you don't know
+exactly how much space you need. For example, if you change the file's
+encoding before you save it by converting a PNG image to JPEG, you won't
+know the file's size beforehand.
+
+--> Delete a File
+You should always delete files that you no longer need. The most
+straightforward way to delete a file is to have the opened file reference
+call delete() on itself.
+    myFile.delete();    // myFile 是 File 类的对象
+If the file is saved on internal storage, you can also ask the Context to
+locate and delete a file by calling deleteFile():
+    myContext.deleteFile(fileName);
+Note: When the user uninstalls your app, the Android system deletes the
+following:
+> All files you saved on internal storage
+> All files you saved on external storage using getExternalFilesDir().
+
+However, you should manually delete all cached files created with
+getCacheDir() on a regular basis and also regularly delete other files
+you no longer need.
+
+#### Saving Data in SQL Databases ####
+Saving data to a database is ideal for repeating or structured data, such
+as contact information. The APIs you'll need to use a database on Android
+are available in the "android.database.sqlite" package.
+
+--> Define a Schema and Contract
+One of the main principles of SQL databases is the schema: a formal
+declaration of how the database is organized. The schema is reflected in
+the SQL statements that you use to create your database. You may find it
+helpful to create a companion class, known as a contract class, which
+explicitly specifies the layout of your schema in a systematic and
+self-documenting way.
+
+A contract class is a container for constants that define names for URIs,
+tables, and columns. The contract class allows you to use the same
+constants across all the other classes in the same package. This lets you
+change a column name in one place and have it propagate throughout your
+code. A good way to organize a contract class is to put definitions that
+are global to your whole database in the root level of the class. Then
+create an inner class for each table that enumerates its columns.
+Note: By implementing the BaseColumns interface, your inner class can
+inherit a primary key field called _ID that some Android classes such as
+cursor adaptors will expect it to have. It's not required, but this can
+help your database work harmoniously with the Android framework.
+
+For example, this snippet defines the table name and column names for a
+single table:
+    public final class FeedReaderContract {
+        // To prevent someone from accidentally instantiating the contract
+        // class, give it an empty constructor.
+        public FeedReaderContract() {}
+    
+        /* Inner class that defines the table contents */
+        public static abstract class FeedEntry implements BaseColumns {
+            public static final String TABLE_NAME = "entry";
+            public static final String COLUMN_NAME_ENTRY_ID = "entryid";
+            public static final String COLUMN_NAME_TITLE = "title";
+            public static final String COLUMN_NAME_SUBTITLE = "subtitle";
+            ...
+        }
+    }
+其实,主要就是把各个表项的值统一放到一个类里面,方便多次复用.
+
+--> Create a Database Using a SQL Helper
+Once you have defined how your database looks, you should implement methods
+that create and maintain the database and tables. Here are some typical
+statements that create and delete a table:
+    private static final String TEXT_TYPE = " TEXT";
+    private static final String COMMA_SEP = ",";
+    private static final String SQL_CREATE_ENTRIES =
+        "CREATE TABLE " + FeedEntry.TABLE_NAME + " (" +
+        FeedEntry._ID + " INTEGER PRIMARY KEY," +
+        FeedEntry.COLUMN_NAME_ENTRY_ID + TEXT_TYPE + COMMA_SEP +
+        FeedEntry.COLUMN_NAME_TITLE + TEXT_TYPE + COMMA_SEP +
+        ... // Any other options for the CREATE command
+        " )";
+    
+    private static final String SQL_DELETE_ENTRIES =
+        "DROP TABLE IF EXISTS " + FeedEntry.TABLE_NAME;
+
+实际调试的时候,将这部分内容放到了下面的FeedReaderDbHelper类里面,所以在
+FeedReaderDbHelper类的源文件里面,需要添加 "import com.example.mysavedata.
+FeedReaderContract.FeedEntry;" 语句来引入FeedEntry包.
+
+Just like files that you save on the device's internal storage, Android
+stores your database in private disk space that's associated application.
+Your data is secure, because by default this area is not accessible to
+other applications. 假设当前Activity的包名是"com.example.mysavedata",则它
+的数据库会存放在 "/data/data/com.example.mysavedata/databases" 目录下.
+
+A useful set of APIs is available in the SQLiteOpenHelper class. When you
+use this class to obtain references to your database, the system performs
+the potentially long-running operations of creating and updating the
+database only when needed and not during app startup. All you need to do
+is call getWritableDatabase() or getReadableDatabase().
+Note: Because they can be long-running, be sure that you call
+getWritableDatabase() or getReadableDatabase() in a background thread, such
+as with AsyncTask or IntentService.
+
+To use SQLiteOpenHelper, create a subclass that overrides the onCreate(),
+onUpgrade() and onOpen() callback methods. You may also want to implement
+onDowngrade(), but it's not required.
+
+For example, here's an implementation of SQLiteOpenHelper that uses some of
+the commands shown above:
+public class FeedReaderDbHelper extends SQLiteOpenHelper {
+    // If you change the database schema, you must increment the database
+    // version.
+    public static final int DATABASE_VERSION = 1;
+    public static final String DATABASE_NAME = "FeedReader.db";
+
+    public FeedReaderDbHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(SQL_CREATE_ENTRIES);
+    }
+    public void onUpgrade(SQLiteDatabase db, int oldVer, int newVer) {
+        // This database is only a cache for online data, so its upgrade
+        // policy is to simply to discard the data and start over
+        db.execSQL(SQL_DELETE_ENTRIES);
+        onCreate(db);
+    }
+    public void onDowngrade(SQLiteDatabase db, int oldVer, int newVer) {
+        onUpgrade(db, oldVer, newVer);
+    }
+}
+
+To access your database, instantiate your subclass of SQLiteOpenHelper:
+    FeedReaderDbHelper mDbHelper = new FeedReaderDbHelper(getContext());
+执行这条语句,将会创建一个名为 "FeedReader.db" 的数据库,其完整路径是:
+    "/data/data/com.example.mysavedata/databases/FeedReader.db"
+如果FeedReader.db数据库不存在,则在执行FeedReaderDbHelper类的构造函数后,系统
+会回调其onCreate()函数,从而执行 "db.execSQL(SQL_CREATE_ENTRIES)" 语句,通过
+SQL命令创建一个数据库.经过验证发现,当FeedReader.db已经存在时,再次调用
+FeedReaderDbHelper类的构造函数,不会回调其 onCreate() 函数.
+
+--> Put Information into a Database
+Insert data into the database by passing a ContentValues object to the
+insert() method:
+    // Gets the data repository in write mode
+    SQLiteDatabase db = mDbHelper.getWritableDatabase();
+    
+    // Create a new map of values, where column names are the keys
+    ContentValues values = new ContentValues();
+    values.put(FeedEntry.COLUMN_NAME_ENTRY_ID, id);
+    values.put(FeedEntry.COLUMN_NAME_TITLE, title);
+    values.put(FeedEntry.COLUMN_NAME_CONTENT, content);
+    
+    // Insert the new row, returning the primary key value of the new row
+    long newRowId;
+    newRowId = db.insert(
+             FeedEntry.TABLE_NAME,
+             FeedEntry.COLUMN_NAME_NULLABLE,
+             values);
+The first argument for insert() is simply the table name. The second
+argument provides the name of a conlumn in which the framework can insert
+NULL in the event that the ContentValues is empty (if you instead set this
+to "null", then the framework will not insert a row when there are no
+values. 对该 insert() 函数进一步描述如下:
+  long insert(String table, String nullColumnHack, ContentValues values)
+> Convenience method for inserting a row into the database.
+> Parameters
+    table: the table to insert the row into
+    nullColumnHack: optional; may be null. SQL doesn't allow inserting a
+      completely empty row without naming at least one column name. If your
+      provided values is empty, no column names are known and an empty row
+      can't be inserted. If not set to null, the nullColumnHack parameter
+      provides the name of nullable column name to explicitly insert a NULL
+      into in the case where your values is empty. 即,当insert()函数的第三
+      个参数为空,则第二个参数必须指定表的某个字段名,否则不符合SQL语句规范.
+      假设表A中有两个字段,title, id.当insert()的时候,如果传递给它的第三个参
+      数为空,那么语句就该写成insert(A, "title", null).第二个参数可以写成
+      "title"或"id",以"title"为例.则转换为SQL就是insert into A(title)
+      values(null).此时若insert()函数的第二个参数也是空,则转换后的SQL语句为
+      insert into A() values(null),这个语句是有问题的,不符合SQL规范.
+    values: this map contains the initial column values for the row. The
+      keys should be the column names and the values the column values.
+> Returns: the row ID of the newly inserted row, or -1 if an error occurred
+
+在这个例子中,简单地将上面的 FeedEntry.COLUMN_NAME_NULLABLE 赋值为null即可:
+    public static final String COLUMN_NAME_NULLABLE = null;
+
+--> Read Information from a Database
+To read from a database, use the query() method, passing it your selection
+criteria and desired columns. The method combines elements of insert() and
+update(), except the column list defines the data you want to fetch, rather
+than the data to insert. The results of the query are returned to you in a
+Cursor object. 注意添加"import android.database.Cursor;"语句来引入Cursor包.
+    SQLiteDatabase db = mDbHelper.getReadableDatabase();
+    
+    // Define a projection that specifies which columns from the database
+    // you will actually use after this query.
+    String[] projection = {
+        FeedEntry._ID,
+        FeedEntry.COLUMN_NAME_TITLE,
+    };
+    
+    // How you want the results sorted in the resulting Cursor
+    // 注意,在"DESC"前面有一个空格.
+    String sortOrder = FeedEntry._ID + " DESC";
+    String selection = FeedEntry.COLUMN_NAME_TITLE + " = ?";
+    String[] selectionArgs = { "Hello" };
+    
+    Cursor c = db.query(
+        FeedEntry.TABLE_NAME,  // The table to query
+        projection,            // The columns to return
+        selection,             // The columns for the WHERE clause
+        selectionArgs,         // The values for the WHERE clause
+        null,                  // don't group the rows
+        null,                  // don't filter by row groups
+        sortOrder              // The sort order
+        );
+对上面的 query() 函数描述如下:
+Cursor query(String table, String[] columns, String selection,
+  String[] selectionArgs, String groupBy, String having, String orderBy);
+> Query the given table, returning a Cursor over the result set.
+> Parameters
+    table: The table name to compile the query against.
+    columns: A list of which columns to return. Passing null will return
+      all columns, which is discouraged to prevent reading data from
+      storage that isn't going to be used.
+    selection: A filter declaring which rows to return, formatted as an
+      SQL WHERE clause (excluding the WHERE itself). Passing null will
+      return all rows for the given table.
+    selectionArgs: You may include ?s in selection, which will be replaced
+      by the values from selectionArgs, in order that they appear in the
+      selection. The values will be bound as Strings.
+    groupBy: A filter declaring how to group rows, formatted as an SQL
+      GROUP BY clause (excluding the GROUP BY itself). Passing null will
+      cause the rows to not be grouped.
+    having: A filter declare which row groups to include in the cursor, if
+      row grouping is being used, formatted as an SQL HAVING clause
+      (excluding the HAVING itself). Passing null will cause all row groups
+      to be included, and is required when row grouping is not being used.
+    orderBy: How to order the rows, formatted as an SQL ORDER BY clause
+      (excluding the ORDER BY itself). Passing null will use the default
+      sort order, which may be unordered.
+> Return: A Cursor object, which is positioned before the first entry.
+所以,上面的query()语句中,selection和selectionArgs参数组合之后,得到一个WHERE
+语句为"WHERE title = Hello". selection字符串中的问号('?')起到占位符的作用,
+这个问号会用selectionArgs[]数组中的元素值来代替,得到一个新的字符串.
+
+To look at a row in the cursor, use one of the Cursor move methods, which
+you must always call before you begin reading values. Generally, you should
+start by calling moveToFirst(), which places the "read position" on the
+first entry in the results. For each row, you can read a column's value by
+calling one of the Cursor get methods, such as getString() or getLong().
+For each of the get methods, you must pass the index position of the column
+you desire, which you can get by calling getColumnIndex() or
+getColumnIndexOrThrow(). For example:
+    while (cursor.moveToFirst()) {
+        long itemId = cursor.getLong(
+                cursor.getColumnIndexOrThrow(FeedEntry._ID));
+    }
+下面对 moveToFirst() 函数描述如下:
+    boolean moveToFirst();
+> Move the cursor to the first row. This method will return false if the
+  cursor is empty.
+> Return: whether the move succeeded.
+所以,为了避免触发异常,要先确保moveToFirst()函数返回为真,再去读取数据.
+
+--> Delete Information from a Database
+To delete rows from a table, you need to provide selection criteria that
+identify the rows. The database API provides a mechanism for creating
+selection criteria that protects against SQL injection. The mechanism
+divides the selection specification into a selection clause and selection
+arguments. The clause defines the columns to look at, and also allows you
+to combine column tests. The arguments are values to test against that are
+bound into the clause. Because the result isn't handled the same as a
+regular SQL statement, it is immune to SQL injection.
+    // Define 'where' part of query.
+    String selection = FeedEntry.COLUMN_NAME_ENTRY_ID + " LIKE ?";
+    // Specify arguments in placeholder order.
+    int rowId = 1;
+    String[] selectionArgs = { String.valueOf(rowId) };
+    // Issue SQL statement.
+    db.delete(table_name, selection, selectionArgs);
+
+--> Update a Database
+When you need to modify a subset of your database values, use the update()
+method.
+Updating the table combines the content values syntax of insert() with the
+where syntax of delete().
+    SQLiteDatabase db = mDbHelper.getReadableDatabase();
+    
+    // New value for one column
+    ContentValues values = new ContentValues();
+    values.put(FeedEntry.COLUMN_NAME_TITLE, title);
+    
+    // Which row to update, based on the ID
+    String selection = FeedEntry.COLUMN_NAME_ENTRY_ID + " LIKE ?";
+    int rowId = 1;
+    String[] selectionArgs = { String.valueOf(rowId) };
+    
+    int count = db.update(
+        FeedReaderDbHelper.FeedEntry.TABLE_NAME,
+        values,
+        selection,
+        selectionArgs);
+
+在SQLite数据库中,LIKE操作符可以用通配符来进行模糊匹配.其中,下划线'_'匹配
+一个字符,百分号'%'匹配多个字符. LIKE 在匹配字符串不区分大小写. 例如:
+> LIKE 'Mc%': 匹配以Mc开头的所有字符串. 如McBadden.
+> LIKE '%ger': 匹配以inger结尾的所有字符串. 如Rger, Sger.
+> LIKE '_her': 匹配以her结尾的总共四个字母的名称. 如Cher,不匹配Cnher.
+> LIKE '[CK]ars[eo]n': 将匹配这些字符串: Carsen, Karsen, Carson, Karson.
+> LIKE '[M-Z]in': 匹配以in结尾,以从M到Z之间的单个字母开头的名称. 如Rin.
+> LIKE 'M[^c]%': 匹配以M开头,并且第二个字母不是c的所有名称. 如Mafat.

@@ -1,0 +1,82 @@
+#### Start an activity ####
+To start an activity, call startActivity() and pass it your Intent. The
+system receives this call and starts an instance of the Activity specified
+by the Intent.
+
+--> onCreate()函数
+All subclasses of Activity must implement the onCreate() method. The system
+calls this when creating a new instance of the activity. This method is
+where you must define the activity layout with the setContentView() method
+and is where you should perform initial setup for the activity components.
+
+--> Add it to the manifest
+All activities must be declared in your manifest file, AndroidManifest.xml,
+using an <activity> element. It should look like this:
+<application ...>
+    ...
+    <activity
+        android:name="com.example.myfirstapp.DisplayMessageActivity"
+        android:label="@string/title_activiy_display_message"
+        android:parentActivityName="com.example.myfirstapp.MainActivity">
+        <meta-data
+            android:name="android.support.PARENT_ACTIVITY"
+            android:value="com.example.myfirstapp.MainActivity" />
+    </activity>
+</application>
+如果没有添加"Activity"到"AndroidManifest.xml"文件中,编译能通过,但是运行时
+出错,提示应用"已停止运行",出错信息为:
+    Caused by: android.content.ActivityNotFoundException: Unable to find
+    explicit activity class {com.example.myfirstapp/com.example.myfirstapp.
+    DisplayMessageActivity}; have you declared this activity in your
+    AndroidManifest.xml?
+
+The "android:parentActivityName" attribute declares the name of this
+activity's parent activity within the app's logical hierarchy. The system
+uses this value to implement default navigation behaviors, Such as Up
+navigation on Android 4.1 (API level 16) and higher. You can provide the
+same navigation behaviors for older versions of Android by using the
+Support Library and adding the <meta-data> element as shown here.
+
+--> Receive the Intent
+Every Activity is invoked by an Intent, regardless of how the user
+navigated there. You can get the Intent that started your activity by
+calling getIntent() and retrieve the data contained within it.
+In the DisplayMessageActivity class's onCreate() method, get the intent
+and extract the message delivered by MainActivity:
+    Intent intent = getIntent();
+    String message = intent.getStringExtra(MainActivity.EXTRA_MESSAGE);
+
+--> Display the Message--setContentView()函数
+To show the message on the screen, create a TextView widget and set the
+text using setText(). Then add the TextView as the root view of the
+activity's layout by passing it to setContentView().
+
+For example, the complete onCreate() method for DisplayMessageActivity
+looks like this:
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Get the message from the intent
+        Intent intent = getIntent();
+        String message = intent.getStringExtra(MainActivity.EXTRA_MESSAGE);
+
+        // Create the text view
+        TextView textView = new TextView(this);
+        textView.setTextSize(40);
+        textView.setText(message);
+
+        // Set the text view as the activity layout
+        setContentView(textView);
+    }
+下面是"http://developer.android.com/reference/android/app/Activity.html#
+setContentView(android.view.View)"在线网址对"setContentView(View)"的描述:
+    public void setContentView (View view)
+Set the activity content to an explicit view. This view is placed directly
+into the activity's view hierarchy. It can itself be a complex view
+hierarchy. When calling this method, the layout parameters of the specified
+view are ignored. Both the width and the height of the view are set by
+default to MATCH_PARENT. To use your own layout parameters, invoke
+"setContentView(android.view.View, android.view.ViewGroup.LayoutParams)"
+instead.
+Parameters
+    view    The desired content to display

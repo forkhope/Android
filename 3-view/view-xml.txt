@@ -1,0 +1,109 @@
+#### Building a Simple User Interface ####
+The graphical user interface for an Android app is built using a hierarchy
+of View and ViewGroup objects. View objects are usually UI widgets such as
+buttons or text fields and ViewGroup objects are invisible view containers
+that define how the child views are laid out, such as in a grid or a
+vertical list.
+
+Android provides an XML vocabulary that corresponds to the subclasses of
+View and ViewGroup so you can define your UI in XML using a hierarchy of
+UI elements.
+                                        -----------
+                                        |ViewGroup|
+                                        -----------
+                                             |
+                        ---------------------|-------------------
+                        |                    |                  |
+                   -----------           --------           --------
+                   |ViewGroup|           | View |           | View |
+                   -----------           --------           --------
+                        |
+        ----------------|---------------
+        |               |              |
+   --------         --------        --------
+   | View |         | View |        | View |
+   --------         --------        --------
+        Figure 1. Illustration of how ViewGroup objects form
+        branches in the layout and contain other View objects.
+
+#### LinearLayout ####
+LinearLayout is a view group (a subclass of ViewGroup) that lays out child
+views in either a vertical or horizontal orientation, as specified by the
+"android:orientation" attribute. Each child of a LinearLayout appears on
+the screen in the order in which it appears in the XML. For example:
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal" >
+</LinearLayout>
+
+#### Add a Text Field ####
+To create a user-editable text field, add an <EditText> element inside the
+<LinearLayout>. Like every View object, you must define certain XML
+attributes to specify the EditText object's properties. Here's how you
+should declare it inside the <LinearLayout> element:
+<EditText android:id="@+id/edit_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:hint="@string/edit_message" />
+
+About these attributes:
+android:id
+  This provides a unique identifier for the view, which you can use to
+  reference the object from your app code, such as to read and manipulate
+  the object.
+  The at sign (@) is required when you're referring to any resource object
+  from XML. It is followed by the resource type (id in thie case), a slash,
+  then the resource name (edit_message).
+  The plus sign (+) before the resource type is needed only when you're
+  defining a resource ID for the first time. When you compile the app, the
+  SDK tools use the ID name to create a new resource ID in your project's
+  gen/R.java file that refers to the EditText element. Once the resource ID
+  is declared once this way, other references to the ID do not need the plus
+  sign. Using the plus sign is necessary only when specifying a new resource
+  ID and not needed for concrete resources such as strings or layouts.
+android:layout_width and android:layout_height
+  Instead of using specific sizes for the width and height, the
+  "wrap_content" value specifies that the view should be only as big as
+  needed to fit the content of the view. If you were to instead use
+  "match_parent", then the EditText element would fill the screen, because
+  it would match the size of the parent LinearLayout.
+android:hint
+  This is a default string to display when the text field is empty. Instead
+  of using a hard-coded string as the value, the "@string/edit_message"
+  value refers to a string resource defined in a separate file. Because this
+  refers to a concrete resource (not just an identifier), it does not need
+  the plus sign. Note: This string resource has the same name as the element
+  ID: edit_message. However, references to resources are always scoped by
+  the resource type (such as id or string), so using the same name does not
+  cause collisions.
+
+--> About resource objects
+A resource object is simply a unique integer name that's associated with an
+app resource, such as bitmap, layout file, or string.
+Eevery resource has a corresponding resource object defined in your
+project's gen/R.java file. You can use the object names in the R class to
+refer to your resources, such as when you need to specify a string value for
+the android:hint attribute. You can also create arbitrary resource IDs that
+you associate with a view using the android:id attribute, which allows you
+to reference that view from other code.
+The SDK tools generate the R.java each time you compile your app. You should
+never modify this file by hand.
+
+#### Add String Resources ####
+When you need to add text in the user interface, you should always specify
+each string as a resource. String resources allow you to manage all UI text
+in a single location, which makes it easier to find and update text.
+Externalizing the strings also allows you to localize your app to different
+languages by providing alternative definitions for each string resource.
+
+By default, your Android project includes a string resource file at
+"res/values/strings.xml". Add a new string named "edit_message" and set the
+value to "Enter a message." The result of strings.xml looks like this:
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">My First App</string>
+    <string name="edit_message">Enter a message</string>
+    <string name="title_activity_main">MainActivity</string>
+</resources>

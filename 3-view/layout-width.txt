@@ -1,0 +1,106 @@
+#### 描述Android XML文件中 layout_width 和 layout_height 的使用 ####
+--> 是否要定义 layout_width 和 layout_height 属性?
+Android在线网址
+"http://developer.android.com/training/basics/firstapp/building-ui.html"
+中提到:
+The other two attributes, android:layout_width and android:layout_height,
+are required for all views in order to specify their size.
+
+也就是说,在XML文件中定义View组件时,一定要指定 "android:layout_width" 和
+"android:layout_height" 属性.
+实际调试发现,如果在XML的某个View中不指定这两个属性,例如只写为:
+"<TextView android:text="@string/title_activity_main" />".
+则编译能通过,不会报错,但是运行时会出错,提示应用已停止运行. adb logcat 中
+打印如下信息:
+W/dalvikvm(15650): threadid=1: thread exiting with uncaught exception
+    (group=0x415feba8)
+E/AndroidRuntime(15650): FATAL EXCEPTION: main
+E/AndroidRuntime(15650): Process: com.example.myfirstapp, PID: 15650
+E/AndroidRuntime(15650): java.lang.RuntimeException: Unable to start
+    activity ComponentInfo{com.example.myfirstapp/com.example.myfirstapp.
+    MainActivity}: java.lang.RuntimeException: Binary XML file line #8:
+    You must supply a layout_width attribute.
+E/AndroidRuntime(15650): Caused by: java.lang.RuntimeException: Binary XML
+    file line #8: You must supply a layout_width attribute.
+W/ActivityManager( 1799): Force finishing activity com.example.
+    myfirstapp/.MainActivity
+
+可见,在XML中定义View组件时,确实要指定 "android:layout_width" 和
+"android:layout_height" 属性.
+
+--> fill_parent, match_parent, 和wrap_content的区别.
+Android在线网址"http://developer.android.com/reference/android/view/
+ViewGroup.LayoutParams.html"对这三个值进行了描述:
+==========================================================================
+| Constant     | Value | Description                                     |
+|--------------|-------|-------------------------------------------------|
+| fill_parent  |  -1   | The view should be as big as its parent (minus  |
+|              |       |     padding). It is replaced by match_parent    |
+| match_parent |  -1   | The view should be as big as its parent (minus  |
+|              |       |     padding).                                   |
+| wrap_content |  -2   | The view should be only big enough to enclose   |
+|              |       |     its content (plus padding).                 |
+==========================================================================
+
+假设一个xml资源文件中,只有下面两个View:
+    <TextView android:text="MainActivity"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" />
+    <EditText android:id="@+id/edit_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:hint="Enter a message" />
+则运行时,会发现只能看到<TextView>组件,看不到<EditText>组件.应该是因为
+<TextView>的宽和高都指定了"fill_parent",导致该组件内容覆盖了父组件的所有
+空间,所以看不到<EditText>组件.此时,<TextView>组件所显示的"MainActivity"字
+符串位于界面的左上角.
+如果将上面<TextView>组件改成 android:layout_height="wrap_content" 的形
+式,运行时会发现,还是看不到<EditText>组件,但是<TextView>所显示的
+"MainActivity"字符串还是紧挨着左侧,但是降到了界面的中间位置.
+
+如果将<TextView>组件改成android:layout_width="match_parent"和
+android:layout_height="match_parent",运行时会发现,还是看不到<EditText>
+组件,但是会自动弹出小键盘,应该是<EditText>获得了焦点.此时,<TextView>所
+显示的"MainActivity"字符串位于界面的左上角.
+
+如果将<TextView>组件改成android:layout_width="wrap_content"和
+android:layout_height="wrap_content",运行时会发现,<TextView>和
+<EditText>组件都能显示出来,且自动弹出小键盘,<EditText>组件获得焦点.
+此时,这两个组件呈水平排列,紧挨在一起.
+
+--> LinearLayout中的 android:width 和 android:weight
+Android在线网址"http://developer.android.com/training/basics/
+firstapp/building-ui.html#Weight"中提到: LinearLayout 的weight属性
+(android:layout_weight)可以让组件填充屏幕未使用的空间.
+The weight value is a number that specifies the amount of remaining space
+each view should consume, relative to the amount consumed by sibling views.
+This works kind of like the amount of ingredients in a drink recipe: 
+"2 parts vodka, 1 part coffee liqueur" means two-third of the drink is
+vodka. For example, if you give one view a weight of 2 and another one a
+weight of 1, the sum is 3, so the first view fills 2/3 of the remaining
+space and the second view fills the rest. If you add a third view and give
+it a weight of 1, then the first view (with weight of 2) now gets 1/2 the
+remaining space, while the remaining two each get 1/4.
+
+The default weight for all views is 0, so if you specify any weight value
+greater than 0 to only one view, then that view fills whatever space
+remains after all views are given the space they require. So, to fill the
+remaining space in your layout with the EditText element, given it a
+weight of 1 and leave the button with no weight.
+    '<EditText android:layout_weight="1" ... />'
+
+In order to improve the layout efficiency when you specify the weight, you
+should change the width of the EditText to be zero (0dp). Setting the
+weight to zero improves layout performance because using "wrap_content" as
+the width requires the system to calculate a width that is ultimately
+irrelevant because the weight value requires another width calculation to
+fill the remaining space.
+  '<EditText android:layout_weight="1" android:layout_width="0dp" ... />'
+即,Android官方手册推荐是设置了 "layout_weight" 以后,需要再将
+"android:layout_width" 设置为 "0dp".
+
+当混合使用"android:weight"和"android:width"时,有如下说明:
+(1)将"android:width"设成"match_parent",则"android:weight"越小,占的空间
+   越大; "fill_parent"则相反.
+(2)将"android:width"设成"wrap_content",则组件之间的比例和
+   "android:weight"值所指定的比例不一样.

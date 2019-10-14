@@ -1,0 +1,595 @@
+#### Managing the Activity Lifecycle ####
+As a user navigates through, out of, and back to your app, the Activity
+instances in your app transition between different states in their
+lifecycle. For instance, when your activity starts for the first time, it
+comes to the foreground of the system and receives user focus. During this
+process, the Android system calls a series of lifecycle methods on the
+activity in which you set up the user interface and other components. If
+the user performs an action that starts another activity or switches to
+another app, the system calls another set of lifecycle methods on your
+activity as it moves into the background (where the activity is no longer
+visible, but the instance and its state remains intact).
+
+Within the lifecycle callback methods, you can declare how your activity
+behaves when the user leaves and reenters the activity. For example, if
+you've building a streaming video player, you might pause the video and
+terminate the network connection when the user switches to another app.
+When the user returns, you can reconnect to the network and allow the user
+to resume the video from the same spot.
+
+Ths following explains important lifecycle callback methods that each
+Activity instance receives and how you can use them so your activity does
+what the user expects and does not consume system resources when your
+activity doesn't need them.
+
+#### Starting an Activity ####
+Unlike other programming paradigms in which apps are launched with a main()
+method, the Android system initiates code in an Activity instance by
+invoking specific callback methods that correspond to specific stages of
+its lifecycle. There is a sequence of callback methods that start up an
+activity and a sequence of callback methods that tear down an activity.
+
+--> Understand the Lifecycle Callbacks
+During the life of an activity, the system calls a core set of lifecycle
+methods in a sequence similar to a step pyramid. That is, each stage of the
+activity lifecycle is a seperate step on the pyramid. As the system creates
+a new activity instance, each callback method moves the activity state one
+step toward the top. The top of the pyramid is the point at which the
+activity is running in the foreground and the user can interact with it.
+As the user begins to leave the activity, the system calls other methods
+that move the activity staet back down the pyramid in order to dismantle
+the activity. In some cases, the activity will move only part way down the
+pyramid and wait (such as when the user switches to another app), from
+which point the activity can move back to the top (if the user returns to
+the activity) and resume where the user left off.
+                            -----------
+                    +------>| Resumed |---------+
+                    |       |(visible)|         |
+                    |       -----------      onPause()
+                onResume()     ^                |
+                    |          |                v
+               ----------- onResume() ---------------------
+           +-->| Started |     |      |      Paused       |--+
+           |   |(visible)|     +------|(partially visible)|  |
+  onStart()|   -------^---            ---------------------  |onStop()
+           |          |                                +-----+
+       -----------  onStart()                     -----v------
+   +-->| Created |    |                           | Stopped  |-----+
+   |   -----------    +-------onRestart()---------| (hidden) |     |
+ onCreate()                                       ------------ onDestroy()
+   |                                                               |
+------------                                                  -----v-------
+| Activity |                                                  | Destroyed |
+------------                                                  -------------
+Figure 1. A simplified illustration of the Activity lifecycle, expressed as
+a step pyramid. This shows how, for every callback used to take the
+activity a step toward the Resumed state at the top, there's a callback
+method that takes the activity a step down. The activity can also return
+to the resumed state from the Paused and Stopped state.
+
+Depending on the complexity of your activity, you probably don't need to
+implement all the lifecycle methods. However, it's important that you
+understand each one and implement those that ensure your app behaves the
+way users expect. Implementing your activity lifecycle methods properly
+ensures your app behaves well in several ways, including that it:
+> Does not crash if the user receives a phone call or switches to another
+  app while using your app.
+> Does not consume valuable system resources when the user is not actively
+  using it.
+> Does not lose the user's progress if they leave your app and return to
+  it at a later time.
+> Does not crash or lose the user's progress when the screen rotates
+  between landscape and portrait orientation.
+
+As you'll learn in the following lessons, there are several situations in
+which an activity transitions between different states that are illustrated
+in figure 1. However, only three of these states can be static. That is,
+the activity can exist in one of only three states for an extended period
+of time:
+Resumed
+    In this state, the activity is in the foreground and the user can
+    interact with it. (Also sometimes referred to as the "running" state.)
+Paused
+    In this state, the activity is partially obscured by another activity--
+    the other activity that's in the foreground is semi-transparent or
+    doesn't cover the entire screen. The paused activity does not receive
+    user input and cannot execute any code.
+Stopped
+    In this state, the activity is completely hidden and not visible to the
+    user; it is considered to be in the background. While stopped, the
+    activity instance and all its state information such as member
+    variables is retained, but it cannot execute any code.
+
+The other states (Created and Started) are transient and the system quickly
+moves from them to the next state by calling the next lifecycle callback
+method. That is, after the system calls onCreate(), it quickly calls
+onStart(), which is quickly followed by onResume().
+
+--> Specify Your App's Launcher Activity
+When the user selects your app icon from the Home screen, the system calls
+the onCreate() method for the Activity in your app that you've declared to
+be the "launcher" (or "main") activity. This is the activity that serves
+as the main entry point to your app's user interface.
+You can define which activity to use as the main activity to use as the
+main activity in the Android manifest file, AndroidManifest.xml, which is
+at the root of your project directory. The main activity for you app must
+be declared in the manifest with an "<intent-filter>" that includes the
+"MAIN" action and "LAUNCHER" category. For example:
+  <activity android:name=".MainActivity" android:label="@string/app_name">
+      <intent-filter>
+          <action android:name="android.intent.action.MAIN" />
+          <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+  </activity>
+Note: When you create a new Android project with the Android SDK tools,
+the default project files include an Activity class that's declared in the
+manifest with this filter.
+If either the "MAIN" action or "LAUNCHER" category are not declared for one
+of your activities, then your app icon will not appear in the Home screen's
+list of apps.
+
+--> Create a New Instance
+Most apps include several different activities that allow the user to
+perform different actions. Whether an activity is the main activity that's
+created when the user clicks your app icon or a different activity that
+your app starts in response to a user action, the system creates every
+new instance of Activity by calling its onCreate() method.
+
+You must implement the onCreate() method to perform basic application
+startup logic that should happen only once for the entire life of the
+activity. For example, your implementation of onCreate() should define the
+user interface and possibly instantiate some class-scope variables.
+即, onCreate() 函数应该进行那些只初始化一次的操作.
+
+For example, the following example of the onCreate() method shows some code
+that performs some fundamental setup for the activity, such as declaring
+the user interface (defined in an XML layout file), defining member
+variables, and configuring some of the UI.
+>>>>>>>>>>>>>>>>>>>>>>>>> Begin of onCreate() <<<<<<<<<<<<<<<<<<<<<<<<<
+TextView mTextView; // Member variable for text view in the layout
+@Override
+public void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+
+    // Set the user interface layout for this Activity. The layout file is
+    // defined in the project "res/layout/main_activity.xml" file.
+    setContentView(R.layout.main_activity);
+    
+    // Initialize member TextView so we can manipulate it later
+    mTextView = (TextView) findViewById(R.id.text_message);
+    
+    // Make sure we're running on Honeycomb or higher to use ActionBar APIs
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+        // For the main activity, make sure the app icon in the action bar
+        // does not behave as a button
+        ActionBar actionBar = getActionBar();
+        actionBar.setHomeButtonEnabled(false);
+    }
+}
+>>>>>>>>>>>>>>>>>>>>>>>>> End of onCreate() <<<<<<<<<<<<<<<<<<<<<<<<<
+
+Once the onCreate() finishes execution, the system calls the onStart() and
+onResume() methods in quick succession. Your activity never resides in the
+Created or Started states. Technically, the activity becomes visible to
+the user when onStart() is called, but onResume() quickly follows and the
+activity remains in the Resumed state until something occurs to change
+that, such as when a phone call is received, the user navigates to another
+activity, or the device screen turns off.
+The onStart() and onResume() are useful during your activity's lifecycle
+when used to resume the activity from the Paused or Stopped states.
+
+--> Destroy the Activity
+While the activity's first lifecycle callback is onCreate(), its very last
+callback is onDestroy(). The system calls this method on your activity as
+the final signal that your activity instance is being completely removed
+from the system memory.
+Most apps don't need to implement this method because local class
+references are destroyed with the activity and your activity should perform
+most cleanup during onPause() and onStop(). However, if your activity
+includes background threads that you created during onCreate() or other
+long-running resources that could potentially leak memory if not properly
+closed, you should kill them during onDestroy().
+    @Override
+    public void onDestroy() {
+        super.onDestroy();  // Always call the superclass
+        
+        // Stop method tracing that the activity started during onCreate()
+        android.os.Debug.stopMethodTracing();
+    }
+Note: The system calls onDestroy() after it has already called onPause()
+and onStop() in all situations except one: when you call finish() from
+within the onCreate() method. In some cases, such as when your activity
+operates as a temporary decision maker to launch another activity, you
+might call finish() from within onCreate() to destroy the activity. In this
+case, the system immediately calls onDestroy() without calling any of the
+other lifecycle methods.
+
+#### Pausing and Resuming an Activity
+During normal app use, the foreground activity is sometimes obstructed by
+other visual components that cause the activity to pause. For example, when
+a semi-transparent activity opens (such as one in ths style of a dialog),
+the previous activity pauses. As long as the activity is still partially
+visible but currently not the activity in focus, it remains paused.
+However, once the activity is fully-obstructed and not visible, it stops.
+即,当 Activity 的界面部分可见,但焦点不在它身上时,它处于 Paused 状态.例如启
+动一个对话框类型(android:theme="@android:style/Theme.Dialog)的Activity,由于
+对话框Activity不是全屏的,其底下的Activity就是"部分可见",此时底下的Activity
+处于 Paused 状态.如果新启动一个全屏的Activity,则底下的Activity完全不可见,它
+会处于 Stopped 状态.实际加log调试,确认就是这个流程.
+
+As your activity enters the paused state, the system calls the onPause()
+method on your Activity, which allows your to stop ongoing actions that
+should not continue while paused (such as a video) or persist any
+information that should be permanently saved in case the user continues to
+leave your app. If the user returns to your activity from the paused state,
+the system resumes it and calls the onResume() method.
+When a semi-transparent activity obscures your activity, the system calls
+onPause() and the activity waits in the Paused state. If the user returns
+to the activity while it's still paused, the system calls onResume().
+Note: When your activity receives a call to onPause(), it may be an
+indication that the activity will be paused for a moment and the user may
+return focus to your activity. However, it's usually the first indication
+that the user is leaving your activity.
+
+--> Pause Your Activity
+When the system calls onPause() for your activity, it technically means
+your activity is still partially visible, but most often is an indication
+that the user is leaving the activity and it will soon enter the Stopped
+state. You should usually use the onPause() callback to:
+> Stop animations or other ongoing actions that could consume CPU.
+> Commit unsaved changes, but only if users expect such changes to be
+  permanently saved when they leave (such as a draft email).
+> Release system resources, such as broadcast receivers, handles to sensors
+  (like GPS), or any resources that may affect battery life while your
+  activity is paused and the user does not need them.
+
+For example, if your application uses the Camera, the onPause() method is
+a good place to release it.
+    @Override
+    public void onPause() {
+        super.onPause();  // Always call the superclass method first
+    
+        // Release the Camera because we don't need it when paused
+        // and other activities might need to use it.
+        if (mCamera != null) {
+            mCamera.release()
+            mCamera = null;
+        }
+    }
+Generally, you should not use onPause() to store user changes (such as
+personal information entered into a form) to permanent storage. The only
+time you should persist user changes to permanent storage within onPause()
+is when you're certain users expect the changes to be auto-saved (such as
+when drafting an email). However, you should avoid performing CPU-intensive
+work during onPause(), such as writing to a database, because it can slow
+the visible transition to the next actity (you should instead perform
+heavy-load shutdown operations during onStop()).
+
+You should keep the amount of operations done in the onPause() method
+relatively simple in order to allow for a speedy transition to the user's
+next destination if your activity is actually being stopped.
+Note: When your activity is paused, the Activity instance is kept resident
+in memory and is recalled when the activity resumes. You don't need to
+re-initialize components that were created during any of the callback
+methods leading up to the Resumed state.
+
+--> Resume Your Activity
+When the user resumes your activity from the Paused state, the system calls
+the onResume() method.
+Be aware that the system calls this method every time your activity comes
+into the foreground, including when it's created for the first time. As
+such, you should implement onResume() to initialize components that you
+release during onPause() and perform any other initializatioins that must
+occur each time the activity enters the Resumed state (such as begin
+animations and initialize components only used while the activity has user
+focus).
+
+The following example of onResume() is the counterpart to the onPause()
+example above, so it initializes the camera that's released when the
+activity pauses.
+    @Override
+    public void onResume() {
+        super.onResume();  // Always call the superclass method first
+    
+        // Get the Camera instance as the activity achieves full user focus
+        if (mCamera == null) {
+            initializeCamera(); // Local method to handle camera init
+        }
+    }
+
+#### Stopping and Restarting an Activity ####
+There are a few of key scenarios in which your activity is stopped and
+restarted:
+> The user opens the Recent Apps window and switches from your app to
+another app. The activity in your app that's currently in the foreground
+is stopped. If the user returns to your app from the Home screen launcher
+icon or the Recent Apps window, the activity restarts.
+> The user performs an action in your app that starts a new activity. The
+current activity is stopped when the second activity is created. If the
+user then presses the Back button, the first activity is restarted.
+> The user receives a phone call while using your app on his or her phone.
+
+The Activity class provides two lifecycle methods, onStop() and onResume(),
+which allow you to specifically handle how your activity handles being
+stopped and restarted. Unlike the paused state, which identifies a partial
+UI obstruction, the stopped state guarantees that the UI is no loger
+visible and the user's focus is in a separate activity (or en entirely
+separate app).
+Note: Because the system retains your Activity instance in system memory
+when it is stopped, it's possible that you don't need to implement the
+onStop() and onRestart() (or even onStart() methods at all). For most
+activities that are relatively simple, the activity will stop and restart
+just fine and you might only need to use onPause() to pause ongoing actions
+and disconnect from system resources.
+
+When the user leaves your activity, the system calls onStop() to stop the
+activity. If the user returns while the activity is stopped, the system
+calls onRestart(), quickly followed by onStart() and onResume(). Notice
+that no matter what scenario cuases the activity to stop, the system always
+calls onPause() before calling onStop().
+
+--> Stop Your Activity
+When your activity receives a call to the onStop() method, it's no longer
+visible and should release almost all resources that aren't needed while
+the user is not using it. Once your activity is stopped, the system might
+destroy the instance if it needs to recover system memory. In extreme
+cases, the system might simply kill your app process without calling the
+activity's final onDestroy() callback, so it's important you use onStop()
+to release resources that might leak memory.
+
+Although the onPause() method is called before onStop(), you should use
+onStop() to perform larger, more CPU intensive shut-down operations, such
+as writing information to a database.
+For example, here's an implementation of onStop() that saves the contents
+of a draft note to persistent storage:
+@Override
+protected void onStop() {
+    super.onStop();  // Always call the superclass method first
+
+    // Save the note's current draft, because the activity is stopping
+    // and we want to be sure the current note progress isn't lost.
+    ContentValues values = new ContentValues();
+    values.put(NotePad.Notes.COLUMN_NAME_NOTE, getCurrentNoteText());
+    values.put(NotePad.Notes.COLUMN_NAME_TITLE, getCurrentNoteTitle());
+
+    getContentResolver().update(
+        mUri,    // The URI for the note to update.
+        values,  // The map of column names and new values to apply to them
+        null,    // No SELECT criteria are used.
+        null     // No WHERE columns are used.
+        );
+}
+
+When your activity is stopped, the Activity object is kept resident in
+memory and is recalled when the activity resumes. You don't need to
+re-initialize components that were created during any of the callback
+methods leading up to the Resumed state. The system also keeps track of the
+current state for each View in the layout, so if the user entered text into
+an EditText widget, that content is retained so you don't need to save and
+restore it.
+Note: Even if the system destroys your activity while it's stopped, it
+still retains the state of the View objects (such as text in an EditText)
+in a Bundle (a blob of key-value pairs) and restores them if the user
+navigates back to the same instance of the activity.
+实际调试发现,当 Activity 停留在 onStop() 状态,再执行onRestart()->onStart()
+->onResume()恢复时, EditText 中的内容会被保留.如果执行过onDestroy()函数,再
+执行onCreate()函数恢复时, EditText 中的内容不会被保留.
+从当前Activity启动第二个Activity时,上一个Activity会处于 onStop() 状态.此时,
+若点击"Back"按钮退回上一个Activity,会执行onRestart()函数,EditText中的内容还
+保留.若点击"Up"导航按钮退回上一个Activity,会先执行onDestroy()函数摧毁上一个
+Activity,再执行onCreate()创建新的Activity,EditText中的内容会被清空.
+
+#### Start/Restart Your Activity ####
+When your activity comes back to the foreground from the stopped state, it
+receives a call to onRestart(). The system also calls the onStart() method,
+which happens every time your activity becomes visible (whether being
+restarted or created for the first time). The onRestart() method, however,
+is called only when the activity resumes from the stopped state, so you can
+use it to perform special restoration work that might be necessary only if
+the activity was previously stopped, but not destroyed.
+
+It's uncommon that an app needs to use onRestart() to restore the
+activity's state. However, because your onStop() method should essentially
+clean up all your activity's resources, you'll need to re-initiate them
+when the activity restarts. Yet, you also need to instantiate them when
+your activity is created for the first time (when there's no existing
+instance of the activity). For this reason, you should usually use the
+onStart() callback method as the counterpart to the onStop() method,
+because the system calls onStart() both when it creates your activity and
+when it restarts the activity from the stopped state.
+For example, because the user might have been away from your app for a long
+time before coming back it, the onStart() method is a good place to verify
+that required system features are enabled:
+@Override
+protected void onStart() {
+    super.onStart();  // Always call the superclass method first
+    
+    // The activity is either being restarted or started for the first time
+    // so this is where we should make sure that GPS is enabled
+    LocationManager locationManager = 
+            (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+    boolean gpsEnabled = locationManager.isProviderEnabled(
+            LocationManager.GPS_PROVIDER);
+    
+    if (!gpsEnabled) {
+        // Create a dialog here that requests the user to enable GPS, and
+        // use an intent with the 
+        // android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS action
+        // to take the user to the Settings screen to enable GPS when they
+        // click "OK"
+    }
+}
+
+@Override
+protected void onRestart() {
+    super.onRestart();  // Always call the superclass method first
+    
+    // Activity being restarted from stopped state    
+}
+
+When the system destroys your activity, it calls the onDestroy() method for
+your Activity. Because your should generally have release most of your
+resources with onStop(), by the time you receive a call to onDestroy(),
+there's not much that most apps need to do. This method is your last chance
+to clean out resources that could lead to memory leak, so you should be
+sure that additional threads are destroyed and other long-running actions
+like method tracing are also stopped.
+
+#### Recreating an Activity ####
+There are a few scenarios in which your activity is destroyed due to normal
+app behavior, such as when the user presses the Back button or your
+activity signals its own destruction by calling finish(). The system may
+also destroy your activity if it's currently stopped and hasn't been used
+in a long time or the foreground activity requires more resources so the
+system must shut down background processes to recover memory.
+When your activity is destroyed because the user presses Back or the
+activity finishes itself, the system's concept of that Activity instance is
+gone forever because the behavior indicates the activity is no longer
+needed. However, if the system destroys the activity due to system
+constraints (rather than normal app behavior), then although the actual
+Activity instance is gone, the system remembers that is existed such that
+if the user navigates back to it, the system creates a new instance of the
+activity using a set of saved data that describes the state of the activity
+when it was destroyed. The saved data that the system uses to restore the
+previous state is called the "instance state" and is a collection of
+key-value pairs stored in a Bundle object.
+Caution: Your activity will be destroyed and recreated each time the user
+rotates the screen, When the screen changes orientation, the system
+destroys and recreates the foreground activity because the screen
+configuration has changed and your activity might need to load alternative
+resources (such as the layout).
+
+By default, the system uses the Bundle instance state to save information
+about each View object in your activity layout (such as the text value
+entered into an EditText object). So, if your activity instance is
+destroyed and recreated, the state of the layout is restored to its
+previous state with no code required by you. However, your activity might
+have more state information that you'd like to restore, such as member
+variables that track the user's progress in the activity.
+!!Note!!: In order for the Android system to restore the state of the views
+in your activity, each view must have a unique ID, supplied by the
+"android:id" attribute.
+
+实际验证发现,当点击"Back"键退出Activity,再重新进入时,系统传递给onCreate()
+函数的savedInstanceState参数总是null,而按照上面的警告,旋转屏幕会重新调用
+onCreate()函数,此时传递过来的savedInstanceState参数就不是null.即,这里描述
+的"Recreating an Activity"的概念不包括点击"Back"退出Activity再进入的情况,而
+是指由于系统资源或内存等的限制,导致后台Activity被系统摧毁,此时该Activity的
+一些状态被系统保留,当再次进入该Activity时,所保留的状态被传递给Activity,以供
+恢复.如上所述,系统默认保存和恢复指定了ID的 View 对象的状态.当在EditText中
+输入一些内容后,转动屏幕,这些内容还会保留.但是点击"Back"键退出,再进入后,这些
+内容会被清空.
+
+To save additional data about the activity state, you must override the
+onSaveInstanceState() callback method. The system calls this method when
+the user is leaving your activity and passes it the Bundle object that will
+be saved in the event that your activity is destroyed unexpectedly. If the
+system must recreate the activity instance later, it passes the same Bundle
+object to both the onRestoreInstanceState() and onCreate() methods.
+    -------------                                -------------
+    |  Resumed  |                                |           |
+    | (visible) |-------onSaveInstanceState()--->| Destroyed |
+    -------------                                -------------
+
+    ------------
+    | Activity |
+    ------------
+         |
+     onCreate()
+         |                                         -------------
+    -----v-----                                    |  Resumed  | 
+    | Created |---------onRestoreInstanceState()-->| (visible) |
+    -----------                                    -------------
+Figure 2. As the system begins to stop your activity, it calls
+onSaveInstanceState() so you can specify additional state data you'd like
+to save in case the Activity instance must be recreated. If the activity
+is destroyed and the same instance must be recreated, the system passes the
+state data defined at both the onCreate() method and the
+onRestoreInstanceState() method.
+
+--> Save Your Activity State
+As your activity begins to stop, the system calls onSaveInstanceState() so
+your activity can save state information with a collection of key-value
+pairs. The default implementation of this method saves information about
+the state of the activity's view hierarchy, such as the text in an EditText
+widget or the scroll position of a ListView.
+
+To save additional state information for you activity, you must implement
+onSaveInstanceState() and add key-value pairs to the Bundle object. 实际调
+试发现,执行onPause()函数后,就会执行onSaveInstanceState()函数. For example:
+  static final String STATE_SCORE = "playerScore";
+  static final String STATE_LEVEL = "playerLevel";
+  ...
+  
+  @Override
+  public void onSaveInstanceState(Bundle savedInstanceState) {
+      // Save the user's current game state
+      savedInstanceState.putInt(STATE_SCORE, mCurrentScore);
+      savedInstanceState.putInt(STATE_LEVEL, mCurrentLevel);
+      
+      // Always call the superclass so it can save the view hierarchy state
+      super.onSaveInstanceState(savedInstanceState);
+  }
+Caution: Always call the superclass implementation of onSaveInstanceState()
+so the default implementation can save the state of the view hierarchy.
+
+--> Restore Your Activity State
+When your activity is recreated after it was previously destroyed, you can
+recover your saved state from the Bundle that the system passes your
+activity. Both the onCreate() and onRestoreInstanceState() callback methods
+receive the same Bundle that contains the instance state information.
+
+Because the onCreate() method is called whether the system is creating a
+new instance of your activity or recreating a previous one, you must check
+whether the state Bundle is null before you attempt to read it. If it is
+null, then the system is creating a new instance of the activity, instead
+of restoring a previous one that was destroyed.
+For example, here's how you can restore some state data in onCreate():
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState); // Always call the superclass first
+   
+    // Check whether we're recreating a previously destroyed instance
+    if (savedInstanceState != null) {
+        // Restore value of members from saved state
+        mCurrentScore = savedInstanceState.getInt(STATE_SCORE);
+        mCurrentLevel = savedInstanceState.getInt(STATE_LEVEL);
+    } else {
+        // Initialize members with default values for a new instance
+    }
+    ...
+}
+
+Instead of restoring the state during onCreate() you may choose to
+implement onRestoreInstanceState(), which the system calls after the
+onStart() method. The system calls onRestoreInstanceState() only if there
+is a saved state to restore, so you do not need to check whether the
+Bundle is null:
+  public void onRestoreInstanceState(Bundle savedInstanceState) {
+      // Always call the superclass so it can restore the view hierarchy
+      super.onRestoreInstanceState(savedInstanceState);
+     
+      // Restore state members from saved instance
+      mCurrentScore = savedInstanceState.getInt(STATE_SCORE);
+      mCurrentLevel = savedInstanceState.getInt(STATE_LEVEL);
+  }
+Caution: Always call the superclass implementation of
+onRestoreInstanceState() so the default implementation can restore the
+state of the view hierarchy.
+
+创建一个新的Activity时,执行的函数顺序是:
+  onCreate()->onStart()->onResume(). 不会执行onRestoreInstanceState()函数
+点击"Home"键返回主界面时,该Activity执行的函数顺序是:
+  onPause()->onSaveInstanceState()->onStop().
+从主界面返回Activity时,执行的函数顺序是:
+  onRestart()->onStart()->onResume(). 此时EditText中的内容会保留.
+点击"Back"键退出Activity时,执行的函数顺序是:
+  onPause()->onStop()->onDestroy(). 此时在onPause()之后不会执行
+  onRestoreInstanceState()函数,即系统不保存Activity的状态.
+点击"Back"键退出Activity"后,再次创建该Activity的函数执行顺序是:
+  onCreate()->onStart()->onResume(). 此时, 传递给onCreate()函数的
+  savedInstanceState参数的值是null. 因为上一个步骤并没有保存Activity状态.
+进入Activity后,旋转屏幕的函数执行顺序是:
+  onPause()->onSaveInstanceState()->onStop()->onDestroy()->onCreate()
+  ->onStart()->onRestoreInstanceState()->onResume(). 此时,传递给onCreate()
+  和onRestoreInstanceState()的savedInstanceState参数不是null.

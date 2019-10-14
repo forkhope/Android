@@ -1,0 +1,526 @@
+#### Build an Intent--创建一个Intent ####
+An Intent is an object that provides runtime binding between seperate
+components (such as two activities). The Intent represents an app's "inten
+to do something." You can use the intents for a wide variety of tasks, but
+most often they're used to start another activity.
+For example, inside a sendMessage() method, create an Intent to start an
+activity called DisplayMessageActivity:
+    Intent intent = new Intent(this, DisplayMessageActivity.class);
+This requires that you import the Intent class:
+    import android.content.Intent;
+The constructor used here takes two parameters:
+> A Context as its first parameter (this(特指上面的this指针) is used
+  because the Activity class is a subclass of Context)
+> The Class of the app component to which the system should deliver the
+  Intent (in this case, the activity that should be started)
+
+An intent not only allows you to start another activity, but it can carry
+a bundle of data to the activity as well. Inside the sendMessage() method,
+use findViewById() to get the EditText element and add its text value to
+the intent:
+    Intent intent = new Intent(this, DisplayMessageActivity.class);
+    EditText editText = (EditText) findViewById(R.id.edit_message)
+    String message = editText.getText().toString();
+    intent.putExtra(EXTRA_MESSAGE, message);
+Note: You now need an import statement for "android.widget.EditText".
+    You'll define the EXTRA_MESSAGE constant in a moment.
+An Intent can carry a collection of various data types as key-value pairs
+called extras. The putExtra() method takes the key name in the first
+parameter and the value in the second parameter. It's generally a good
+practice to define keys for intent extras using your app's package name as
+a prefix. This ensures they are unique, in case your app interacts with
+other apps.
+
+#### Interacting with Other Apps ####
+An Android app typically has several activities. Each activity displays a
+user interface that allows the user to perform a specific task (such as
+view a map or take a photo). To take the user from one activity to another,
+your app must use an Intent to define your app's "intent" to do something.
+When you pass an Intent to the system with a method such as startActivity(),
+the system uses the Intent to identify and start the appropriate app
+compontent. Using intents even allows your app to start an activity that is
+contained in a separate app.
+
+An Intent can be explicit in order to start a specific component (a
+specific Activity instance) or implicit in order to start any component
+that can handle the intended action (such as "capture a photo").
+
+#### Sending the User to Another App--传送用户到其它App ####
+One of Android's most important features is an app's ability to send the
+user to another app based on an "action" it would like to perform. For
+example, if your app has the address of a business that you'd like to show
+on a map, you don't have to build an activity in your app that shows a map.
+Instead, you can create a request to view the address using an Intent. The
+Android system then starts an app that's able to show the address on a map.
+
+You must use intents to navigate between activities in your own app. You
+generally do so with an explicit intent, which defines the exact class name
+of the compoent you want to start. However, when you want to have a
+separate app perform an action, such as "view a map," you must use an
+implicit intent.
+
+--> Build an Implicit Intent
+Implicit intents do not declare the class name of the component to start,
+but instread declare an action to perform. The action specifies the thing
+you want to do, such as view, edit, send, or get something. Intents often
+also include data associated with the action, such as the address you want
+to view, or the email message you want to send. Depending on the intent you
+want to create, the data might be a Uri, one of several other data types,
+or the intent might not need data at all.
+
+If your data is a Uri, there's a simple Intent() constructor you can use
+define the action and data. For example, here's how to create an intent to
+initiate a phone call using the Uri data to specify the telephone number:
+    注意添加 "import android.net.Uri;" 语句来引入 Uri 包.
+    Uri number = Uri.parse("tel:5551234");
+    Intent callIntent = new Intent(Intent.ACTION_DIAL, number);
+When your app invokes this intent by calling startActivity(), the Phone app
+initiates a call to the given phone number.
+
+Here are a couple other intents and their action and Uri data pairs:
+> View a map:
+    // Map point based on address
+    Uri location = Uri.parse(
+        "geo:0,0?q=1600+Amphitheatre+Parkway,+Mountain+View,+California");
+    // Or map point based on latitude/longitude. z param is zoom level
+    // Uri location = Uri.parse("geo:37.422219,-122.08364?z=14");
+    Intent mapIntent = new Intent(Intent.ACTION_VIEW, location);
+> View a web page:
+    Uri webpage = Uri.parse("http://www.android.com");
+    Intent webIntent = new Intent(Intent.ACTION_VIEW, webpage);
+注意: 这里的网址要以"http://"或"https://"开头,不能只写为"www.android.com",
+否则会找不到响应这个 intent 的应用.
+
+Other kinds of implicit intents require "extra" data that provide different
+data types, such as a string. You can add one or more piececs of extra data
+using the various putExtra() methods.
+
+By default, the system determines the appropriate MIME type required by an
+intent based on the Uri data that's included. If you don't include a Uri
+in the intent, you should usually use setType() to specify the type of data
+associated with the intent. Setting the MIME type further specifies which
+kinds of activities should receive the intent. 注意: 每个intent都要指定数据
+类型,系统会为Uri数据选择合适的MIME类型,如果没有使用Uri数据,要调用setType()
+来设置MIME类型.设置MIME类型能够指定哪些activities能够接收到该intent.例如,
+Intent.ACTION_SEND类型的intent,就要指定数据类型(如"image/*", "text/plain"
+等),否则会找不到响应该intent的应用.
+
+Here are some more intents that add extra data to specify the desired
+action:
+> Send an email with an attachment:
+  注意添加 "import org.apache.http.protocol.HTTP;" 语句来引入 HTTP 包.
+  Intent emailIntent = new Intent(Intent.ACTION_SEND);
+  // The intent does not have a URI, so declare the "text/plain" MIME type
+  emailIntent.setType(HTTP.PLAIN_TEXT_TYPE);
+  emailIntent.putExtra(Intent.EXTRA_EMAIL,
+          new String[] {"jon@example.com"}); // recipients
+  emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Email subject");
+  emailIntent.putExtra(Intent.EXTRA_TEXT, "Email message text");
+  emailIntent.putExtra(Intent.EXTRA_STREAM,
+          Uri.parse("content://path/to/email/attachment"));
+  // You can also attach multiple items by passing an ArrayList of Uris
+> Create a calendar event:
+  注意添加 "import java.util.Calendar;" 语句来引入 Calendar 包.
+  Intent calendarIntent = new Intent(Intent.ACTION_INSERT,
+          Events.CONTENT_URI);
+  Calendar beginTime = Calendar.getInstance().set(2012, 0, 19, 7, 30);
+  Calendar endTime = Calendar.getInstance().set(2012, 0, 19, 10, 30);
+  calendarIntent.putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME,
+          beginTime.getTimeInMillis());
+  calendarIntent.putExtra(CalendarContract.EXTRA_EVENT_END_TIME,
+          endTime.getTimeInMillis());
+  calendarIntent.putExtra(Events.TITLE, "Ninja class");
+  calendarIntent.putExtra(Events.EVENT_LOCATION, "Secret dojo");
+  - Note: This intent for a calendar event is supported only with API
+        level 14 and higher.
+
+Note: It's important that you define your Intent to be as specific as
+possible. For example, if you want to display an image using the
+ACTION_VIEW intent, you should specify a MIME type of "image/*". This
+prevents apps that can "view" other types of data (like a map app) from
+being triggered by the intent. 这里的"as specific as possible"指的是"尽
+可能地详细".即,通过设置MIME数据类型来详细描述intent本身的意图.
+
+--> Verify There is an App to Receive the Intent
+Although the Android platform guarantees that certain intents will resolve
+to one of the built-in apps (such as the Phone, Email, or Calendar app),
+you should always include a verification step before invoking an intent.
+Caution: If you invoke an intent and there is no app available on the
+device that can handle the intent, your app will crash.
+
+To verify there is an activity available that can respond to the intent,
+call queryIntentActivities() to get a list of activities capable of
+handling your Intent. If the returned List is not empty, you can safely
+use the intent, For example:
+    import android.content.pm.PackageManager;
+    import android.content.pm.ResolveInfo;
+    import java.util.List;
+
+    PackageManager packageManager = getPackageManager();
+    List<ResolveInfo> activities = packageManager.queryIntentActivities(
+            intent, 0);
+    boolean isIntentSafe = activities.size() > 0;
+If isIntentSafe is true, then at least one app will respond to the intent.
+If it is false, then there aren't any apps to handle the intent.
+
+--> Start an Activity with the Intent
+Once you have created your intent and set the extra info, call
+startActivity() to send it to the system. If the system identifies more
+than one activity that can handle the intent, it displays a dialog for the
+user to select which app to use. If there is only one activity that handles
+the intent, the system immediately starts it.
+    startActivity(intent);
+
+Here's a complete example that shows how to create an intent to view a map,
+verify that an app exists to handle the intent, then start it:
+    // Build the intent
+    Uri location = Uri.parse("geo:0,0?q=1600+Amphitheatre+Parkway,
+            +Mountain+View,+California");
+    Intent mapIntent = new Intent(Intent.ACTION_VIEW, location);
+
+    // Verify it resolves
+    PackageManager packageManager = getPackageManager();
+    List<ResolveInfo> activities = packageManager.queryIntentActivities(
+            mapIntent, 0);
+    boolean isIntentSafe = activities.size() > 0;
+
+    // Start an activity if it's safe
+    if (isIntentSafe) {
+        startActivity(mapIntent);
+    }
+
+--> Show an App Chooser
+Notice that when you start an activity by passing your intent to
+startActivity() and these is more than one app that responds to the intent,
+the user can select which app to use by default (by selecting a checkbox at
+the bottom of the dialog). This is nice when performing an action for which
+the user generally wants to use the same app every time, such as when
+opening a web page (uses likely use just one web brower) or taking a photo
+(uses likely prefer one camera).
+
+However, if the action to be performed could be handled by multiple apps
+and the user might prefer a different app each time--such as a "share"
+action, for which users might have several apps through which they might
+share an item--you should explicitly show a chooser dialog. The chooser
+dialog forces the user to select which app to use for the action every
+time (the user cannot select a default app for the action).
+
+To show the chooser, create an Intent using createChooser() and pass it
+to startActivity(). For example:
+    Intent intent = new Intent(Intent.ACTION_SEND);
+    intent.setType(HTTP.PLAIN_TEXT_TYPE);   // 一定要设置数据类型
+
+    // Always use string resources for UI text.
+    // This says something like "Share this photo with"
+    String title = getResources().getString(R.string.chooser_title);
+    // Create intent to show chooser
+    Intent chooser = Intent.createChooser(intent, title);
+
+    // Verify the intent will resolve to at least one activity
+    if (intent.resolveActivity(getPackageManager()) != null) {
+        startActivity(chooser);
+    }
+注意: 在上述代码中,一定要调用setType()函数来设置数据类型,否则查询到的数目
+就会空,即intent.resolveActivity(getPackageManager())语句返回为null.
+
+This displays a dialog with a list of apps that respond to the intent
+passed to the createChooser() method and uses the supplied text as the
+dialog title.
+
+#### Getting a Result from an Activity ####
+Starting another activity doesn't have to be one-way. You can also start
+another activity and receive a result back. To receive a result, call
+startActivityForResult() (instead of startActivity()).
+
+For example, your app can start a camera app and receive the captured photo
+as a result. Or, you might start the People app in order for the user to
+select a contact and you'll receive the contact details as a result.
+
+Of course, the activity that responds must be designed to return a result.
+When it does, it sends the result as another Intent object. Your activity
+receives it in the onActivityResult() callback.
+Note: You can use explicit or implicit intents when you call
+startActivityForResult(). When starting one of your own activities to
+receive a result, you should use an explicit intent to ensure that you
+receive the expected result.
+
+--> Start the Activity
+There's nothing special about the Intent object you use when starting an
+activity for a result, but you do need to pass an additional integer
+argument to the startActivityForResult() method.
+
+The integer argument is a "request code" that identifies your request. When
+you receive the result Intent, the callback provides the same request code
+so that your app can properly identify the result and determine how to
+handle it. 即,当前Activity可能会启动多个不同的Activity,但每次回调的都是
+onActivityResult()函数,"request code"用于区分所返回的结果对应哪次请求.
+
+For example, here's how to start an activity that allows the user to pick
+a contact:
+注意添加import android.provider.ContactsContract.CommonDataKinds.Phone;语句
+    static final int PICK_CONTACT_REQUEST = 1;  // The request code
+    private void pickContact() {
+        Intent pickContactIntent = new Intent(Intent.ACTION_PICK,
+                Uri.parse("content://contacts"));
+        pickContactIntent.setType(Phone.CONTENT_TYPE);
+        startActivityForResult(pickContactIntent, PICK_CONTACT_REQUEST);
+    }
+
+--> Receive the Result
+When the user is done with the subsequent activity and returns, the system
+calls your activity's onActivityResult() method. This method includes
+three arguments:
+> The request code you passed to startActivityForResult().
+> A result code specified by the second activity. This is either RESULT_OK
+  if the operation was successful or RESULT_CANCELED if the user backed out
+  or the operation failed for some reason.
+> An Intent that carries the result data.
+
+For example, here's how you can handle the result for the "pick a contact"
+intent:
+  @Override
+  protected void onActivityResult(int requestCode, int resultCode,
+          Intent data) {
+      // Check which request we're responding to
+      if (requestCode == PICK_CONTACT_REQUEST) {
+          // Make sure the request was successful
+          if (resultCode == RESULT_OK) {
+              // The user picked a contact. The Intent's data Uri
+              // identifies which contact was selected.
+              // Do something with the contact here (bigger example below)
+          }
+      }
+  }
+In this example, the result Intent returned by Android's Contacts or People
+app provides a content Uri that identifies the contact the user selected.
+
+In order to successfully handle the result, you must understand what the
+format of the result Intent will be. Doing so is easy when the activity
+returning a result is one of your own activities. Apps included with the
+Android platform offer their own APIs that you can count on for specific
+result data. For instance, the People app (Contacts app on some older
+versions) always returns a result with the content URI that dientifies the
+selected contact, and the Camera app returns a Bitmap in the "data" extra.
+
+Bonus: Read the contact data
+The code above showing how to get a result from the People app doesn't go
+into details about how to actually read the data from the result, because
+it requires more advanced discussion about content providers. However, if
+you're curious, here's some more code that shows how to query the result
+data to get the phone number from the selected contact:
+  @Override
+  protected void onActivityResult(int requestCode, int resultCode,
+          Intent data) {
+      // Check which request it is that we're responding to
+      if (requestCode == PICK_CONTACT_REQUEST) {
+          // Make sure the request was successful
+          if (resultCode == RESULT_OK) {
+              // Get the URI that points to the selected contact
+              Uri contactUri = data.getData();
+              // We only need the NUMBER column, because there will be
+              // only one row in the result
+              String[] projection = {Phone.NUMBER};
+
+              // Perform the query on the contact to get the NUMBER column
+              // We don't need a selection or sort order (there's only one
+              // result for the given URI)
+              // CAUTION: The query() method should be called from as
+              // separate thread to avoid blocking your app's UI thread.
+              // (For simplicity of the sample, this code doesn't do that.)
+              // Consider using CursorLoader to perform the query.
+              Cursor cursor = getContentResolver()
+                      .query(contactUri, projection, null, null, null);
+              cursor.moveToFirst();
+
+              // Retrieve the phone number from the NUMBER column
+              int column = cursor.getColumnIndex(Phone.NUMBER);
+              String number = cursor.getString(column);
+
+              // Do something with the phone number...
+          }
+      }
+  }
+Note: Before Android 2.3 (API level 9), performing a query on the Contacts
+Provider (like the one shown above) requires that your app to declare the
+READ_CONTACTS permission. However, beginning with Android 2.3, the
+Contacts/People app grants your app a temporary permission to read from the
+Contacts Provider when it returns you a result. The temporary permission
+applies only to the specific contact requested, so you cannot query a
+contact other than the one specified by the intent's Uri, unless you do
+declare the READ_CONTACTS permission.
+
+#### Allowing Other Apps to Start Your Activity ####
+If your app can perform an action that might be useful to another app, your
+app should be prepared to respond to action requests from other apps. For
+instance, if you build a social app that can share messages or photos with
+the user's friends, it's in your best interest to support the ACTION_SEND
+intent so users can initiate a "share" action from another app and launch
+your app to perform the action.
+
+To allow other apps to start your activity, you need to add an
+<intent-filter> element in your manifest file for the corresponding
+<activity> element.
+
+When your app is installed on a device, the system identifies your intent
+filters and adds the information to an internal catalog of intents
+supported by all installed apps. When an app calls startActivity() or
+startActivityForResult(), with an implicit intent, the system finds which
+activity (or activities) can respond to the intent.
+
+#### Add an Intent Filter ####
+In order to properly define which intents your activity can handle, each
+intent filter you add should be as specific as possible in terms of the
+type of action and data the activity acceptes.
+
+The system may send a given Intent to an activity if that activity has an
+intent filter fulfills the following criteria of the Intent object:
+Action
+    A string naming the action to perform. Usually one of the platform-
+    defined values such as ACTION_SEND or ACTION_VIEW.
+    Specify this in your intent filter with the <action> element. The value
+    you specify in this element must be the full string name of the action,
+    instead of the API constant. 在Intent.java中,有这样的定义:
+    public static final String ACTION_SEND = "android.intent.action.SEND";
+    即,要求在<action>标签中添加"android.intent.action.SEND"这个字符串,而不
+    是添加 ACTION_SEND 这个常量名.
+Data
+    A description of the data associated with the intent.
+    Specify this in your intent filter with the <data> element. Using one
+    or more attributes in this element, you can specify just the MIME type,
+    just a URI prefix, just a URI scheme, or a combination of these and
+    others that indicate the data type accepted.
+    - Note: If you don't need to declare specifics about the data Uri (such
+      as when your activity handles to other kind of "extra" data, instead
+      of a URI), you should specify only the "android:mimeType" attribute
+      to declare the type of data your activity handles, such as
+      "text/plain" or "image/jpeg".
+Category
+    Provides an additional way to characterize the activity handling the
+    intent, usually related to the user gesture or location from which it's
+    started. There are several different categories supported by the
+    system, but most are rarely used. However, all implicit intents are
+    defined with CATEGORY_DEFAULT by default.
+    Specify this in your intent filter with the <category> element.
+
+In your intent filter, you can declare which criteria your activity accepts
+by declaring each of them with corresponding XML elements nested in the
+<intent-filter> element.
+
+For example, here's an activity with an intent filter that handles the
+ACTION_SEND intent when the data type is either text or an image:
+    <activity android:name="ShareActivity">
+        <intent-filter>
+            <action android:name="android.intent.action.SEND"/>
+            <category android:name="android.intent.category.DEFAULT"/>
+            <data android:mimeType="text/plain"/>
+            <data android:mimeType="image/*"/>
+        </intent-filter>
+    </activity>
+Each incoming intent specifies only one action and one data type, but it's
+OK to declare multiple instances of the <action>, <category>, and <data>
+elements in each <intent-filter>. 在一个<intent-filter>里面,可以同时写多个
+<action>, <data>, 和 <category> 标签.
+
+If any two pairs of action and data are mutually exclusive in their
+behaviors, you should create separate intent filters to specify which
+actions are acceptable when paired with which data types.
+
+For example, suppose your activity handles both text and images for both
+the ACTION_SEND and ACTION_SENDTO intents. In this case, you must define
+two separate intent filters for the two actions because a ACTION_SEND
+intent must use the data Uri to specify the recipient's address using the
+send or sendto URI scheme. For example:
+    <activity android:name="ShareActivity">
+        <!-- filter for sending text; accepts SENDTO action with sms
+             URI schemes -->
+        <intent-filter>
+            <action android:name="android.intent.action.SENDTO"/>
+            <category android:name="android.intent.category.DEFAULT"/>
+            <data android:scheme="sms" />
+            <data android:scheme="smsto" />
+        </intent-filter>
+        <!-- filter for sending text or images; accepts SEND action
+             and text or image data -->
+        <intent-filter>
+            <action android:name="android.intent.action.SEND"/>
+            <category android:name="android.intent.category.DEFAULT"/>
+            <data android:mimeType="image/*"/>
+            <data android:mimeType="text/plain"/>
+        </intent-filter>
+    </activity>
+Note: In order to receive implicit intents, you must include the
+CATEGORY_DEFAULT category in the intent filter. The methods startActivity()
+and startActivityForResult() treat all intents as if they declared the
+CATEGORY_DEFAULT category. If you do not declare it in your intent filter,
+no implicit intents will resolve to your activity.
+
+--> Handle the Intent in Your Activity
+In order to decide what action to take in your activity, you can read the
+Intent that was used to start it.
+
+As your activity starts, call getIntent() to retrieve the Intent that
+started the activity. You can do so at any time during the lifecycle of the
+activity, but you should generally do so during early callbacks such as
+onCreate() or onStart(). For example:
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.main);
+
+        // Get the intent that started this activity
+        Intent intent = getIntent();
+        Uri data = intent.getData();
+
+        // Figure out what to do based on the intent type
+        // 实际调试发现,通过Launcher启动该Activity时,intent.getType()函数
+        // 会返回null,如果不做判断的话,会触发空指针异常.
+        if (intent.getType() != null) {
+            if (intent.getType().indexOf("image/") != -1) {
+                // Handle intents with image data ...
+            } else if (intent.getType().equals("text/plain")) {
+                // Handle intents with text ...
+            }
+        }
+    }
+
+--> Return a Result
+If you want to return a result to the activity that invoked yours, simply
+call setResult() to specify the result code and result Intent. When your
+operation is done and the user should return to the original activity, call
+finish() to close (and destroy) your activity. For example:
+    Intent result = new Intent("com.example.RESULT_ACTION",
+        Uri.parse("content://result_uri");
+    setResult(Activity.RESULT_OK, result);
+    finish();
+这里需要执行 finish() 函数.如果不执行该函数,则该Activity被启动后,不会自动
+返回调用它的Activity.
+
+You must always specify a result code with the result. Generally, it's
+either RESULT_OK or RESULT_CANCELED. You can then provide additional data
+with an Intent, as necessary.
+Note: The result is set to RESULT_CANCELED by default. So, if the user
+presses the Back button before completing the action and before you set
+the result, the original activity receives the "canceled" result.
+在onActivityResult()回调函数中,会有一个"requestCode"参数,但是,setResult()函
+数并没有包含这个参数.应该是系统自动添加"requestCode"到onActivityResult()中.
+
+If you simply need to return an integer that indicates one of several
+result options, you can set the result code to any value higher than 0. If
+you use the result code to deliver an integer and you have no need to
+include the Intent, you can call setResult() and pass only a result code.
+For example:
+    setResult(RESULT_COLOR_RED);
+    finish();
+注意: RESULT_OK 的值是 -1.
+
+In this case, there might be only a handful of possible results, so the
+result code is a locally defined integer (greater than 0). This works well
+when you're returning a result to an activity in your own app, because the
+activity that receives the result can reference the public constant to
+determine the value of the result code.
+Note: There's no need to check whether your activity was started with
+startActivity() or startActivityForResult(). Simply call setResult() if the
+intent that started your activity might expect a result. If the originating
+activity had called startActivityForResult(), then the system delivers it
+the result you supply to setResult(); otherwise, the result is ignored.

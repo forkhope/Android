@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MainActivity</string>
+    <string name="title_display_activity">Search Activity</string>
+    <string name="action_search">Search</string>
+    <string name="action_settings">Just For Settings</string>
+    <string name="button_hide">Hide The Action Bar</string>
+    <string name="button_show">Show The Action Bar</string>
+</resources>

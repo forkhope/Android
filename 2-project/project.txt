@@ -1,0 +1,209 @@
+#### Creating an Android Project ####
+An Android project contains all the files that comprise the source code for
+your Android app. The Android SDK tools make it easy to start a new Android
+project with a set of default project directories and files. 可以通过
+Eclipse 或者 命令行 来创建一个Android项目.下面描述通过命令行创建项目的方法:
+--> Create a project with Command Line Tools
+1. Change directories into the Android SDK's "tools/" path.
+2. Execute "android list targets". This prints a list of the available
+Android platforms that you've downloaded for your SDK. Find the platform
+against which you want to compile your app. Make a note of the target id.
+3. Execute "android create project --target <target-id> --name MyFirstApp \
+        --path <path-to-workspace>/MyFirstApp --activity MainActivity \
+        --package com.example.myfirstapp
+Replace <target-id> with an id from the list of targets (from the previous
+step) and replace <path-to-workspace> with the location in which you want
+to save your Android projects.
+Your Android project is now a basic "Hello World" app that contains some
+default files.
+
+实际上,这个步骤就是创建了一些目录和文件,并在文件中预置了一些内容.手动创建
+这些目录和文件也是可以的,只是麻烦而已.通过Android SDK自带的"android"命令来
+创建,更方便. 在一个Android项目中,一般包含如下目录和文件:
+--> AndroidManifest.xml
+    The manifest file describes the fundamental characteristics of the app
+    and defines each of its components. One of the most important elements
+    your manifest should include is the <uses-sdk> element. This deslares
+    your app's compatibility with different Android versions using the
+    "android:minSdkVersion" and "android:targetSdkVersion" attributes. Etc:
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" ... >
+    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="19" />
+    ...
+</manifest>
+    Your should always set the "android:targetSdkVersion" as high as
+    possible and test your app on the corresponding platform version.
+--> src/
+    Directory for your app's main source files. By default, it includes an
+    Activity class that runs when your app is launched using the app icon.
+--> res/
+    Contains several sub-directories for app resources. Here are just a few:
+    drawable-hdpi/
+        Directory for drawable objects (such as bitmaps) that are designed
+        for high-density (hdpi) screens. Other drawable directories contain
+        assets designed for other screen densities.
+    layout/
+        Directory for files that define your app's user interface.
+    values/
+        Directory for other various XML files that contain a collection of
+        resources, such as string and color definitions.
+
+#### 在命令行编译Android项目--ant ####
+Change directories to the root of your Android project and execute:
+    "ant debug"
+这里的"ant"命令是一种基于Java的build工具,类似于linux中的make命令.其官方网址
+是"http://ant.apache.org/".对该命令的描述如下:
+Apache Ant is a Java-based build tool. In theory, it is kind of like make,
+without make's wrinkles. 这是一个将软件编译,测试,部署等步骤联系在一起加以
+自动化的工具,大多用于Java环境中的软件开发.默认情况下,它的buildfile(XML文件)
+名为build.xml.每个buildfile含有一个<project>和至少一个默认的<target>,这些
+<target>包含许多task elements.每一个task elements有一个用来被参考的id,此id
+必须是唯一的.
+
+--> ant命令的格式: ant [options] [target [target2 [target3] ...]]
+介绍部分选项如下(Options):
+    -help, -h: 打印帮助信息
+    -projecthelp, -p: print project help information. This option prints
+        out a list of the build file's targets.
+    -debug, -d: print debugging information
+
+--> "ant debug" 和 "ant -debug" 的区别
+Android在线网址提到用"ant debug"命令来编译Android Project.而ant有个"-debug"
+选项.注意 "ant debug" 和 "ant -debug" 的区别,描述如下:
+(1) "ant debug"中的"debug"是编译文件build.xml中定义的目标(target).可以使用
+"ant -p"命令来查看当前Android Project下定义的目标,可以看到有如下信息:
+    debug       Builds the application and signs it with a debug key.
+(2) "ant -debug"中的"-debug"是ant命令的选项,表示"print debugging
+information.执行"ant debug"和"ant -debug"所打印的信息完全不同.
+
+--> "ant clean"
+如果build.xml中支持"clean"目标,就可以使用ant clean来清理编译文件.注意,ant
+命令并没有类似于"clean"的选项,这个目标需要在build.xml中指定.一个例子如下:
+<target name="clean" description="Delete all generated files">
+    <delete dir="${classes.dir}" failonerror="false"/>
+    <delete file="${ant.project.name}.jar"/>
+</target>
+Android Project的build.xml中定义了 "clean" 目标.
+
+--> Android Project中定义的一些ant目标
+在一个Android Project项目下执行 "ant -p" 命令查看它的目标,打印如下:
+Buildfile: /home/john/source/workspace/MyFirstApp/build.xml
+Main targets:
+ clean       Removes output files created by other targets.
+ debug       Builds the application and signs it with a debug key.
+ install     Installs the newly build package. Must be used in conjunction
+             with a build target (debug/release/instrument). If the
+             application was previously installed, the application is
+             reinstalled if the signature matches.
+ installd    Installs (only) the debug package.
+ installi    Installs (only) the instrumented package.
+ installr    Installs (only) the release package.
+ installt    Installs (only) the test and tested packages.
+ instrument  Builds an instrumented packaged.
+ lint        Runs lint on the project to look for potential bugs
+ release     Builds the application in release mode.
+ test        Runs tests from the package defined in test.package property
+ uninstall   Uninstalls the application from a running emulator or device.
+Default target: help
+可以看到,默认目标是"help",所以直接在Android Project根目录下执行ant,会打印
+当前build.xml中定义的帮助信息.其他常用的目标有安装apk的"install"目标,执行
+apk的"test"目标,编译debug代码的"debug"目标,清理编译文件的"clean"目标等.
+
+!!NOTE!!: 如果只执行"ant install"会报错: 'ant install' now requires the
+build target to be specified as well. 例如, "ant debug install". 也可以使
+用"ant installd"指定要安装"debug package",这样就不用指定"debug"目标了.
+
+!!NOTE!!: 在执行ant test目标时,遇到过这样一个报错: BUILD FAILED. Project is
+not a test project. 这是因为"ant test"只能执行定义在"test.package"中的包.
+而之前使用"android create projct"语句创建的Android Project并不是具备该属性.
+查看项目根目录下的"ant.properties",可以看到里面全是注释.
+可以使用"android create test-project"语句来创建一个新的test project,也可以
+使用"android update test-project"已经来转换一个已有项目为test project.例如:
+  android update test-project -m MyFirstApp/ -p MyFirstTestApp
+上面的"-m MyFirstApp"指定了已有项目的根目录,"-p MyFirstTestApp"指定了新的
+test project项目的路径.转换之后,进到MyFirstTestApp目录,查看"ant.properties"
+文件,里面有这样一句"tested.project.dir=../MyFirstApp/".
+奇怪的是,转换之后,执行"ant test"虽然不会报"Project is not a test project"的
+错,但是运行时会报着这样一个错: "BUILD FAILED. exec returned: 1"
+INSTRUMENTATION_STATUS: Error=Unable to find instrumentation info for:
+ComponentInfo{com.example.myfirstapp/android.test.InstrumentationTestRunner}
+[exec] INSTRUMENTATION_STATUS_CODE: -1
+[exec] android.util.AndroidException: INSTRUMENTATION_FAILED:
+    com.example.myfirstapp/android.test.InstrumentationTestRunner
+目前猜测,这个test project项目指的是运行单元测试的项目,可能要实现特殊的方法.
+
+#### 编译,安装,并运行Android项目 #### 
+(1) ant debug: 编译一个Android项目.
+(2) adb install -r bin/apkname: 安装apk文件到机器上,'-r' means reinstall
+the app, keepting its data.如果不指定"-r",则重新安装该apk时,会报错.
+(3) adb shell am start -n: 在命令行中运行机器上的apk应用.在adb shell中直接
+执行 "am" 命令就会打印出它的帮助信息.另外,Android在线网址"http://developer.
+android.com/tools/help/adb.html"是adb的帮助手册,里面对am命令做了详细描述:
+am start [options] <INTENT>: Start an Activity specified by <INTENT>.
+其中, "-n <COMPONENT>" 是 "<INTENT>" 的一种写法,表示: Specify the component
+name with package name prefix to create an explicit intent, such as
+"com.example.app/.ExampleActivity". "<URI> <COMPONENT> <PACKAGE>"是<INTENT>
+的另一种写法: You can directly specify a URI, package name, and compoment
+name when not qualified by one of the above options. When an argument is
+unqualified, the tool assumes the argument is a URI if it contains a ":"
+(colon); it assumes the argument is a component name if it contains a "/"
+(forward-slash); otherwise it assumes the argument is a package name.
+
+具体地说,上面的<COMPONENT>的组成为: 包名(package)/[包名].活动名(Activity).
+包名和活动名在Android Project的AndroidManifest.xml文件中指定.该文件的
+"<manifest>"标签的"package"属性值会指定包名,例如: package="com.example.
+myfirstapp".而"<activity>"标签的"android:name"属性值会指定活动名.
+
+!!NOTE!!: 可指定的活动名不局限于被"<action android:name="android.intent.
+action.MAIN" />"限定的Activity.其他Activity也是可以的.假设有两个Activity:
+<activity android:name="MainActivity" android:label="@string/app_name">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity>
+<activity android:name="DisplayMessageActivity"
+    android:label="@string/title_activity_display_message"
+    android:parentActivityName="com.example.myfirstapp.MainActivity">
+</activity>
+则"am start -n com.example.myfirstapp/.MainActivity"会启动MainActivity.而
+"am start -n com.example.myfirstapp/.DisplayMessageActivity"会启动
+DisplayMessageActivity.
+
+!!NOTE!!: 在指定<INTENT>时,也可以指定intent附带的值,也可以指定intent的标志
+位(flags),具体可查看"http://developer.android.com/tools/help/adb.html":
+  -f <FLAGS>
+    Add flags to the intent, as supported by setFlags().
+  --esn <EXTRA_KEY>
+    Add a null extra. This option is not supported for URI intents.
+  -e|--es <EXTRA_KEY> <EXTRA_STRING_VALUE>
+    Add string data as a key-value pair.
+  --ez <EXTRA_KEY> <EXTRA_BOOLEAN_VALUE>
+    Add boolean data as a key-value pair.
+  --ei <EXTRA_KEY> <EXTRA_INT_VALUE>
+    Add integer data as a key-value pair.
+例如DisplayMessageActivity接收一个String型的附带值,则可以这样启动它:
+  am start -n com.example.myfirstapp/.DisplayMessageActivity \
+     -e "com.example.myfirstapp.message" "world"
+这里的"-e"指定要附带String型的数据,"com.example.myfirstapp.message"数据的名
+称,"world"是该名称对应的值.这样指定后,DisplayMessageActivity.java中使用
+getStringExtra("com.example.myfirstapp.message")就会返回"world"这个值.
+
+实际验证发现,"am start -n compoent"和"am start component"有所区别.如果一个
+Activity正在运行,则执行"am start compoment"再次启动该Activity时,am命令会打
+印出这样的警告信息: "Warning: Activity not started, its current task has
+been brought to the front".而如果使用"am start -n compoent"来再次启动该
+Activity时,不会出现上述的报警信息.
+
+综上所述,可以使用下面的组合命令来编译,安装,并运行一个APK文件.其中,"&&"表示
+前一个命令运行成功(即命令返回码为0)时,才会执行下一个命令:
+ant debug && adb install -r bin/MyFirstApp-debug.apk && adb shell \
+  "am start -n com.example.myfirstapp/com.example.myfirstapp.MainActivity"
+
+根据上面"-n <COMPONENT>"的例子,进一步简化如下:
+    ant debug && adb install -r bin/MyFirstApp-debug.apk && \
+        adb shell "am start -n com.example.myfirstapp/.MainActivity"
+即不用写两遍"com.example.myfirstapp"这个包名.
+
+更进一步,可以使用"ant install"命令来安装编译好的apk文件,不用指定apk路径:
+    ant debug install && \
+        adb shell "am start -n com.example.myfirstapp/.MainActivity"

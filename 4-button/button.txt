@@ -1,0 +1,21 @@
+#### 为<Button>组件添加点击事件 ####
+To respond to the button's on-click event, open the layout file and add the
+"android:onClick" attribute to the <Button> element:
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/button_send"
+        android:onClick="sendMessage" />
+The "android:onClick" attribute's value, "sendMessage", is the name of a
+method in your activity that the system calls when the user clicks the
+button. Etc., Open the MainActivity class and add the corresponding method:
+    /** Called when the user clicks the Send button */
+    public void sendMessage(View view) {
+        // Do something in response to button
+    }
+In order for the system to match this method to the method name given to
+"android:onClick", the signature must be exactly as shown. Specifically,
+the method must:
+> Be public
+> Have a void return value
+> Have a View as the only parameter (this will be the View that was clicked)

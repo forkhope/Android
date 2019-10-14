@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MainActivity</string>
+    <string name="setup_dial">DIAL</string>
+    <string name="show_map">SHOW MAP</string>
+    <string name="show_webpage">SHOW WEB</string>
+    <string name="chooser_title">View webpage via</string>
+    <string name="pick_contact">PICK CONTACT</string>
+    <string name="setup_display">SETUP DISPLAY</string>
+    <string name="title_display">Display</string>
+    <string name="send_message">SEND</string>
+</resources>

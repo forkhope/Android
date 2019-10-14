@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal" >
+
+    <TextView android:text="@string/title_activity_main"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- The at sign (@) is required when you're referring to any
+         resource object from XML. It is followed by the resource type
+         (id in this case), a slash, then the resource name
+         (edit_message). The plus sign (+) before the resource type is
+         needed only when you're defining a resource ID for the first
+         time. When you compile the app, the SDK tools use the ID name
+         to create a new resource ID in your project's gen/R.java file
+         that refers to the EditText element. Once the resource ID is
+         declared once this way, other references to the ID do not need
+         the plus sign. Using the plus sign is necessary only when
+         specifying a new resource ID and not needed for concrete
+         resources such as strings or layouts. -->
+    <EditText android:id="@+id/edit_message"
+        android:layout_weight="1"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/edit_message" />
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/button_send"
+        android:onClick="sendMessage" />
+</LinearLayout>
+
